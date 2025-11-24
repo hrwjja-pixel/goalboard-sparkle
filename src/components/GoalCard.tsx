@@ -1,8 +1,10 @@
 import { Goal, GoalCategory, GoalSize } from '@/types/goal';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, User, TrendingUp } from 'lucide-react';
+import { Calendar, User, TrendingUp, GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface GoalCardProps {
   goal: Goal;
@@ -33,27 +35,49 @@ const getCategoryBadgeClass = (category: GoalCategory) => {
 
 const getSizeClass = (size: GoalSize) => {
   switch (size) {
+    case 'xs':
+      return 'md:col-span-1 md:row-span-1';
     case 'small':
       return 'md:col-span-1 md:row-span-1';
     case 'medium':
       return 'md:col-span-1 md:row-span-2';
     case 'large':
       return 'md:col-span-2 md:row-span-2';
+    case 'xl':
+      return 'md:col-span-2 md:row-span-3';
   }
 };
 
 const getSizeBadge = (size: GoalSize) => {
   switch (size) {
+    case 'xs':
+      return { label: '최저 우선순위', color: 'bg-muted/50 text-muted-foreground' };
     case 'small':
       return { label: '낮은 우선순위', color: 'bg-muted text-muted-foreground' };
     case 'medium':
       return { label: '중간 우선순위', color: 'bg-accent text-accent-foreground' };
     case 'large':
-      return { label: '높은 우선순위', color: 'bg-primary text-primary-foreground' };
+      return { label: '높은 우선순위', color: 'bg-primary/80 text-primary-foreground' };
+    case 'xl':
+      return { label: '최고 우선순위', color: 'bg-primary text-primary-foreground' };
   }
 };
 
 export const GoalCard = ({ goal, onClick }: GoalCardProps) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: goal.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '';
     return new Date(dateStr).toLocaleDateString('ko-KR', {
@@ -67,14 +91,25 @@ export const GoalCard = ({ goal, onClick }: GoalCardProps) => {
 
   return (
     <div
-      onClick={onClick}
+      ref={setNodeRef}
+      style={style}
       className={cn(
         'rounded-xl border-2 p-6 cursor-pointer transition-all duration-300',
-        'hover:shadow-xl hover:-translate-y-1 animate-fade-in',
+        'hover:shadow-xl hover:-translate-y-1 animate-fade-in relative',
         getCategoryClass(goal.category),
-        getSizeClass(goal.size)
+        getSizeClass(goal.size),
+        isDragging && 'opacity-50 z-50'
       )}
     >
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute top-2 right-2 cursor-grab active:cursor-grabbing p-1 hover:bg-foreground/10 rounded transition-colors"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <GripVertical className="w-5 h-5 text-foreground/40" />
+      </div>
+      <div onClick={onClick}>
       <div className="flex items-start justify-between mb-4 gap-2 flex-wrap">
         <div className="flex gap-2">
           <Badge className={cn('text-xs font-semibold', getCategoryBadgeClass(goal.category))}>
@@ -148,6 +183,7 @@ export const GoalCard = ({ goal, onClick }: GoalCardProps) => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };
