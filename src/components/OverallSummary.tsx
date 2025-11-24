@@ -1,13 +1,15 @@
 import { Goal } from '@/types/goal';
 import { Progress } from '@/components/ui/progress';
-import { TrendingUp } from 'lucide-react';
+import { TrendingUp, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface OverallSummaryProps {
   goals: Goal[];
   filteredGoals: Goal[];
+  onAddGoal: () => void;
 }
 
-export const OverallSummary = ({ goals, filteredGoals }: OverallSummaryProps) => {
+export const OverallSummary = ({ goals, filteredGoals, onAddGoal }: OverallSummaryProps) => {
   const overallAverage = Math.round(
     goals.reduce((sum, goal) => sum + goal.progress, 0) / goals.length
   );
@@ -25,9 +27,15 @@ export const OverallSummary = ({ goals, filteredGoals }: OverallSummaryProps) =>
           <h2 className="text-3xl font-bold mb-2">팀 목표 대시보드</h2>
           <p className="text-muted-foreground">Healthcare IT Planning Team</p>
         </div>
-        <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-lg">
-          <TrendingUp className="w-5 h-5 text-primary" />
-          <span className="font-semibold text-primary">진행 중</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-lg">
+            <TrendingUp className="w-5 h-5 text-primary" />
+            <span className="font-semibold text-primary">진행 중</span>
+          </div>
+          <Button onClick={onAddGoal} size="lg" className="shadow-lg">
+            <Plus className="w-5 h-5 mr-2" />
+            새 목표 추가
+          </Button>
         </div>
       </div>
       

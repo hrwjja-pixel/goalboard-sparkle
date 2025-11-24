@@ -151,15 +151,12 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="mb-6 flex justify-end">
-          <Button onClick={() => setIsAddModalOpen(true)} size="lg" className="shadow-lg">
-            <Plus className="w-5 h-5 mr-2" />
-            새 목표 추가
-          </Button>
-        </div>
-
-        <OverallSummary goals={goals} filteredGoals={filteredGoals} />
+      <div className="w-full px-6 py-6">
+        <OverallSummary 
+          goals={goals} 
+          filteredGoals={filteredGoals}
+          onAddGoal={() => setIsAddModalOpen(true)}
+        />
 
         <FilterBar
           searchText={searchText}
