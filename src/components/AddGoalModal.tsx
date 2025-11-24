@@ -15,9 +15,10 @@ interface AddGoalModalProps {
   open: boolean;
   onClose: () => void;
   onAdd: (goal: Goal) => void;
+  categories: GoalCategory[];
 }
 
-export const AddGoalModal = ({ open, onClose, onAdd }: AddGoalModalProps) => {
+export const AddGoalModal = ({ open, onClose, onAdd, categories }: AddGoalModalProps) => {
   const [newGoal, setNewGoal] = useState<Partial<Goal>>({
     title: '',
     description: '',
@@ -120,9 +121,11 @@ export const AddGoalModal = ({ open, onClose, onAdd }: AddGoalModalProps) => {
                 onChange={(e) => setNewGoal({ ...newGoal, category: e.target.value as GoalCategory })}
                 className="w-full h-10 px-3 rounded-md border border-input bg-background"
               >
-                <option value="SERVICE">SERVICE</option>
-                <option value="AI">AI</option>
-                <option value="OPERATIONS">OPERATIONS</option>
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
