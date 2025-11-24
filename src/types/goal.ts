@@ -1,6 +1,13 @@
 export type GoalCategory = 'SERVICE' | 'AI' | 'OPERATIONS';
 export type GoalSize = 'xs' | 'small' | 'medium' | 'large' | 'xl';
 
+export interface Note {
+  id: string;
+  content: string;
+  createdAt: string;
+  isPinned: boolean;
+}
+
 export interface SubGoal {
   id: string;
   title: string;
@@ -24,5 +31,6 @@ export interface Goal {
   dueDate?: string;
   statusNote?: string;
   subGoals?: SubGoal[];
+  notes?: Note[]; // 메모 히스토리
   order?: number; // 드래그 앤 드롭 순서
 }

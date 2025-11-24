@@ -1,7 +1,7 @@
 import { Goal, GoalCategory, GoalSize } from '@/types/goal';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, User, TrendingUp, GripVertical } from 'lucide-react';
+import { Calendar, User, TrendingUp, GripVertical, StickyNote } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -159,6 +159,26 @@ export const GoalCard = ({ goal, onClick }: GoalCardProps) => {
           </div>
         )}
       </div>
+
+      {goal.notes && goal.notes.some(note => note.isPinned) && (
+        <div className="pt-4 border-t border-foreground/10">
+          <div className="flex items-center gap-2 mb-2">
+            <StickyNote className="w-4 h-4 text-primary" />
+            <p className="text-sm font-semibold">중요 메모</p>
+          </div>
+          <div className="space-y-2">
+            {goal.notes
+              .filter(note => note.isPinned)
+              .slice(0, 2)
+              .map((note) => (
+                <div key={note.id} className="p-2 bg-primary/10 rounded-md border border-primary/20">
+                  <p className="text-xs text-foreground/80 line-clamp-2">{note.content}</p>
+                  <p className="text-[10px] text-foreground/50 mt-1">{formatDate(note.createdAt)}</p>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
 
       {goal.subGoals && goal.subGoals.length > 0 && (
         <div className="pt-4 border-t border-foreground/10">

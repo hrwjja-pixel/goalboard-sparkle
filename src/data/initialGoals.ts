@@ -13,6 +13,20 @@ export const initialGoals: Goal[] = [
     startDate: '2025-01-01',
     dueDate: '2025-06-30',
     statusNote: '개발 검토 중',
+    notes: [
+      {
+        id: 'note-1-1',
+        content: '협회 측과 1차 미팅 완료. 주요 요구사항 파악됨',
+        createdAt: '2025-01-05',
+        isPinned: true,
+      },
+      {
+        id: 'note-1-2',
+        content: '기술 스택 검토 필요: React Native vs Flutter',
+        createdAt: '2025-01-10',
+        isPinned: false,
+      },
+    ],
     subGoals: [
       {
         id: '1-1',
@@ -85,6 +99,20 @@ export const initialGoals: Goal[] = [
     startDate: '2025-02-01',
     dueDate: '2025-08-31',
     statusNote: '모델 학습 중',
+    notes: [
+      {
+        id: 'note-3-1',
+        content: '학습 데이터 10만건 확보 완료',
+        createdAt: '2025-02-15',
+        isPinned: true,
+      },
+      {
+        id: 'note-3-2',
+        content: '모델 정확도 목표: 95% 이상',
+        createdAt: '2025-02-20',
+        isPinned: true,
+      },
+    ],
     subGoals: [
       {
         id: '3-1',
