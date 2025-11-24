@@ -1,4 +1,4 @@
-export type GoalCategory = 'SERVICE' | 'AI' | 'OPERATIONS';
+export type GoalCategory = string;
 export type GoalSize = 'xs' | 'small' | 'medium' | 'large' | 'xl';
 
 export interface Note {

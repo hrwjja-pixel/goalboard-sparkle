@@ -1,4 +1,4 @@
-import { Goal, SubGoal, GoalSize, Note } from '@/types/goal';
+import { Goal, SubGoal, GoalSize, Note, GoalCategory } from '@/types/goal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,9 +17,10 @@ interface GoalDetailModalProps {
   onClose: () => void;
   onSave: (goal: Goal) => void;
   onDelete: (goalId: string) => void;
+  categories?: GoalCategory[];
 }
 
-export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete }: GoalDetailModalProps) => {
+export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete, categories = ['SERVICE', 'AI', 'OPERATIONS'] }: GoalDetailModalProps) => {
   const [editedGoal, setEditedGoal] = useState<Goal | null>(goal);
 
   // Update editedGoal when goal changes
@@ -148,12 +149,14 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete }: GoalD
               <Label>카테고리</Label>
               <select
                 value={editedGoal.category}
-                onChange={(e) => setEditedGoal({ ...editedGoal, category: e.target.value as any })}
+                onChange={(e) => setEditedGoal({ ...editedGoal, category: e.target.value as GoalCategory })}
                 className="w-full h-10 px-3 rounded-md border border-input bg-background"
               >
-                <option value="SERVICE">SERVICE</option>
-                <option value="AI">AI</option>
-                <option value="OPERATIONS">OPERATIONS</option>
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
               </select>
             </div>
           </div>

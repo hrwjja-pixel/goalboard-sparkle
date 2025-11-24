@@ -2,8 +2,9 @@ import { GoalCategory } from '@/types/goal';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Filter } from 'lucide-react';
+import { Search, Filter, Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useState } from 'react';
 
 interface FilterBarProps {
   searchText: string;
@@ -13,6 +14,9 @@ interface FilterBarProps {
   selectedCategories: GoalCategory[];
   onCategoryToggle: (category: GoalCategory) => void;
   owners: string[];
+  categories: GoalCategory[];
+  onAddCategory: (category: string) => void;
+  onDeleteCategory: (category: string) => void;
 }
 
 export const FilterBar = ({
@@ -23,12 +27,33 @@ export const FilterBar = ({
   selectedCategories,
   onCategoryToggle,
   owners,
+  categories,
+  onAddCategory,
+  onDeleteCategory,
 }: FilterBarProps) => {
-  const categories: { value: GoalCategory; label: string; color: string }[] = [
-    { value: 'SERVICE', label: 'SERVICE', color: 'badge-service' },
-    { value: 'AI', label: 'AI', color: 'badge-ai' },
-    { value: 'OPERATIONS', label: 'OPERATIONS', color: 'badge-operations' },
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+
+  const handleAddCategoryClick = () => {
+    if (newCategoryName.trim()) {
+      onAddCategory(newCategoryName);
+      setNewCategoryName('');
+      setIsAddingCategory(false);
+    }
+  };
+
+  const categoryColors = [
+    'bg-blue-500/10 text-blue-500 hover:bg-blue-500/20',
+    'bg-purple-500/10 text-purple-500 hover:bg-purple-500/20',
+    'bg-green-500/10 text-green-500 hover:bg-green-500/20',
+    'bg-orange-500/10 text-orange-500 hover:bg-orange-500/20',
+    'bg-pink-500/10 text-pink-500 hover:bg-pink-500/20',
+    'bg-teal-500/10 text-teal-500 hover:bg-teal-500/20',
   ];
+
+  const getCategoryColor = (index: number) => {
+    return categoryColors[index % categoryColors.length];
+  };
 
   return (
     <div className="bg-card rounded-lg shadow-md p-6 mb-6 border border-border">
@@ -63,20 +88,72 @@ export const FilterBar = ({
         </Select>
         
         <div className="col-span-1 md:col-span-2 flex flex-wrap gap-2">
-          {categories.map((category) => (
-            <Button
-              key={category.value}
-              variant={selectedCategories.includes(category.value) ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => onCategoryToggle(category.value)}
-              className={cn(
-                'transition-all',
-                selectedCategories.includes(category.value) && category.color
-              )}
-            >
-              {category.label}
-            </Button>
+          {categories.map((category, index) => (
+            <div key={category} className="relative group">
+              <Button
+                variant={selectedCategories.includes(category) ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => onCategoryToggle(category)}
+                className={cn(
+                  'transition-all pr-8',
+                  !selectedCategories.includes(category) && getCategoryColor(index)
+                )}
+              >
+                {category}
+              </Button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteCategory(category);
+                }}
+                className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/20 rounded"
+              >
+                <X className="w-3 h-3 text-destructive" />
+              </button>
+            </div>
           ))}
+          
+          {isAddingCategory ? (
+            <div className="flex gap-1 items-center">
+              <Input
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder="카테고리명"
+                className="h-9 w-32"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleAddCategoryClick();
+                  if (e.key === 'Escape') {
+                    setIsAddingCategory(false);
+                    setNewCategoryName('');
+                  }
+                }}
+                autoFocus
+              />
+              <Button onClick={handleAddCategoryClick} size="sm" variant="default">
+                추가
+              </Button>
+              <Button
+                onClick={() => {
+                  setIsAddingCategory(false);
+                  setNewCategoryName('');
+                }}
+                size="sm"
+                variant="ghost"
+              >
+                취소
+              </Button>
+            </div>
+          ) : (
+            <Button
+              onClick={() => setIsAddingCategory(true)}
+              size="sm"
+              variant="outline"
+              className="border-dashed"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              카테고리 추가
+            </Button>
+          )}
         </div>
       </div>
     </div>

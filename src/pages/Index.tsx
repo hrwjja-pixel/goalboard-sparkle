@@ -25,16 +25,14 @@ import {
 } from '@dnd-kit/sortable';
 
 const STORAGE_KEY = 'team-goals';
+const CATEGORIES_STORAGE_KEY = 'team-categories';
 
 const Index = () => {
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [categories, setCategories] = useState<GoalCategory[]>([]);
   const [searchText, setSearchText] = useState('');
   const [selectedOwner, setSelectedOwner] = useState('all');
-  const [selectedCategories, setSelectedCategories] = useState<GoalCategory[]>([
-    'SERVICE',
-    'AI',
-    'OPERATIONS',
-  ]);
+  const [selectedCategories, setSelectedCategories] = useState<GoalCategory[]>([]);
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -46,8 +44,26 @@ const Index = () => {
     })
   );
 
-  // Load goals from localStorage or use initial data
+  // Load categories and goals from localStorage
   useEffect(() => {
+    const storedCategories = localStorage.getItem(CATEGORIES_STORAGE_KEY);
+    const defaultCategories = ['SERVICE', 'AI', 'OPERATIONS'];
+    
+    if (storedCategories) {
+      try {
+        const parsedCategories = JSON.parse(storedCategories);
+        setCategories(parsedCategories);
+        setSelectedCategories(parsedCategories);
+      } catch {
+        setCategories(defaultCategories);
+        setSelectedCategories(defaultCategories);
+      }
+    } else {
+      setCategories(defaultCategories);
+      setSelectedCategories(defaultCategories);
+      localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(defaultCategories));
+    }
+
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
@@ -60,12 +76,18 @@ const Index = () => {
     }
   }, []);
 
-  // Save goals to localStorage whenever they change
+  // Save goals and categories to localStorage
   useEffect(() => {
     if (goals.length > 0) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(goals));
     }
   }, [goals]);
+
+  useEffect(() => {
+    if (categories.length > 0) {
+      localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(categories));
+    }
+  }, [categories]);
 
   // Get unique owners
   const owners = useMemo(() => {
@@ -129,6 +151,24 @@ const Index = () => {
     });
   };
 
+  const handleAddCategory = (newCategory: string) => {
+    if (!newCategory.trim() || categories.includes(newCategory.trim())) return;
+    const trimmedCategory = newCategory.trim();
+    setCategories((prev) => [...prev, trimmedCategory]);
+    setSelectedCategories((prev) => [...prev, trimmedCategory]);
+  };
+
+  const handleDeleteCategory = (categoryToDelete: string) => {
+    // Don't allow deletion if goals exist with this category
+    const hasGoalsWithCategory = goals.some((g) => g.category === categoryToDelete);
+    if (hasGoalsWithCategory) {
+      alert('이 카테고리를 사용하는 목표가 있어 삭제할 수 없습니다.');
+      return;
+    }
+    setCategories((prev) => prev.filter((c) => c !== categoryToDelete));
+    setSelectedCategories((prev) => prev.filter((c) => c !== categoryToDelete));
+  };
+
   const handleCardClick = (goal: Goal) => {
     setSelectedGoal(goal);
     setIsDetailModalOpen(true);
@@ -166,6 +206,9 @@ const Index = () => {
           selectedCategories={selectedCategories}
           onCategoryToggle={handleCategoryToggle}
           owners={owners}
+          categories={categories}
+          onAddCategory={handleAddCategory}
+          onDeleteCategory={handleDeleteCategory}
         />
 
         <DndContext
@@ -203,12 +246,14 @@ const Index = () => {
         }}
         onSave={handleSaveGoal}
         onDelete={handleDeleteGoal}
+        categories={categories}
       />
 
       <AddGoalModal
         open={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onAdd={handleAddGoal}
+        categories={categories}
       />
     </div>
   );
