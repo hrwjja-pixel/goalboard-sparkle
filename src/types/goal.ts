@@ -1,5 +1,5 @@
 export type GoalCategory = 'SERVICE' | 'AI' | 'OPERATIONS';
-export type GoalSize = 'small' | 'medium' | 'large';
+export type GoalSize = 'xs' | 'small' | 'medium' | 'large' | 'xl';
 
 export interface SubGoal {
   id: string;
@@ -24,4 +24,5 @@ export interface Goal {
   dueDate?: string;
   statusNote?: string;
   subGoals?: SubGoal[];
+  order?: number; // 드래그 앤 드롭 순서
 }

@@ -69,9 +69,11 @@ export const AddGoalModal = ({ open, onClose, onAdd }: AddGoalModalProps) => {
   };
 
   const sizeOptions: { value: GoalSize; label: string; description: string }[] = [
-    { value: 'small', label: '소 (낮은 우선순위)', description: '일반 카드 크기' },
-    { value: 'medium', label: '중 (중간 우선순위)', description: '높이 2배 카드' },
-    { value: 'large', label: '대 (높은 우선순위)', description: '가로/세로 2배 카드' },
+    { value: 'xs', label: '최저 우선순위', description: '1x1 카드' },
+    { value: 'small', label: '낮은 우선순위', description: '1x1 카드' },
+    { value: 'medium', label: '중간 우선순위', description: '1x2 카드 (높이 2배)' },
+    { value: 'large', label: '높은 우선순위', description: '2x2 카드 (가로/세로 2배)' },
+    { value: 'xl', label: '최고 우선순위', description: '2x3 카드 (매우 큰 크기)' },
   ];
 
   return (
