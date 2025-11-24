@@ -1,4 +1,4 @@
-import { Goal, SubGoal } from '@/types/goal';
+import { Goal, SubGoal, GoalSize } from '@/types/goal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,8 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Slider } from '@/components/ui/slider';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, Maximize2 } from 'lucide-react';
 import { useState } from 'react';
+import { cn } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
 
 interface GoalDetailModalProps {
@@ -75,6 +76,12 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete }: GoalD
 
   const hasSubGoals = editedGoal.subGoals && editedGoal.subGoals.length > 0;
 
+  const sizeOptions: { value: GoalSize; label: string; description: string }[] = [
+    { value: 'small', label: '소 (낮은 우선순위)', description: '일반 카드 크기' },
+    { value: 'medium', label: '중 (중간 우선순위)', description: '높이 2배 카드' },
+    { value: 'large', label: '대 (높은 우선순위)', description: '가로/세로 2배 카드' },
+  ];
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -121,7 +128,34 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete }: GoalD
                 <option value="OPERATIONS">OPERATIONS</option>
               </select>
             </div>
+          </div>
 
+          <div className="p-4 bg-muted rounded-lg">
+            <div className="flex items-center gap-2 mb-3">
+              <Maximize2 className="w-5 h-5 text-primary" />
+              <Label className="text-base">카드 크기 (우선순위)</Label>
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              {sizeOptions.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setEditedGoal({ ...editedGoal, size: option.value })}
+                  className={cn(
+                    'p-3 rounded-lg border-2 text-left transition-all',
+                    editedGoal.size === option.value
+                      ? 'border-primary bg-primary/10 shadow-md'
+                      : 'border-border bg-card hover:border-primary/50'
+                  )}
+                >
+                  <div className="font-semibold">{option.label}</div>
+                  <div className="text-xs text-muted-foreground mt-1">{option.description}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>시작일</Label>
               <Input
