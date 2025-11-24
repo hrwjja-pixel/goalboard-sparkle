@@ -1,4 +1,4 @@
-import { Goal, SubGoal, GoalSize } from '@/types/goal';
+import { Goal, SubGoal, GoalSize, Note } from '@/types/goal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Slider } from '@/components/ui/slider';
-import { Trash2, Plus, Maximize2 } from 'lucide-react';
+import { Trash2, Plus, Maximize2, StickyNote, Pin } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
@@ -60,6 +60,32 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete }: GoalD
       : 0;
     
     setEditedGoal({ ...editedGoal, subGoals: updatedSubGoals, progress: newProgress });
+  };
+
+  const handleAddNote = (content: string, createdAt: string, isPinned: boolean) => {
+    if (!content.trim()) return;
+    
+    const newNote: Note = {
+      id: uuidv4(),
+      content,
+      createdAt,
+      isPinned,
+    };
+    
+    const updatedNotes = [...(editedGoal.notes || []), newNote];
+    setEditedGoal({ ...editedGoal, notes: updatedNotes });
+  };
+
+  const handleTogglePin = (noteId: string) => {
+    const updatedNotes = editedGoal.notes?.map((note) =>
+      note.id === noteId ? { ...note, isPinned: !note.isPinned } : note
+    );
+    setEditedGoal({ ...editedGoal, notes: updatedNotes });
+  };
+
+  const handleDeleteNote = (noteId: string) => {
+    const updatedNotes = editedGoal.notes?.filter((note) => note.id !== noteId);
+    setEditedGoal({ ...editedGoal, notes: updatedNotes });
   };
 
   const handleSave = () => {
@@ -201,6 +227,66 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete }: GoalD
 
           <div className="pt-4 border-t">
             <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-2">
+                <StickyNote className="w-5 h-5 text-primary" />
+                <h3 className="text-lg font-semibold">메모</h3>
+              </div>
+            </div>
+
+            <div className="space-y-3 mb-4">
+              <NoteInput onAddNote={handleAddNote} />
+              
+              {editedGoal.notes && editedGoal.notes.length > 0 ? (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {editedGoal.notes
+                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                    .map((note) => (
+                      <div
+                        key={note.id}
+                        className={cn(
+                          'p-3 rounded-lg border-2 transition-all',
+                          note.isPinned
+                            ? 'bg-primary/10 border-primary/30'
+                            : 'bg-muted border-border'
+                        )}
+                      >
+                        <div className="flex justify-between items-start gap-2">
+                          <p className="text-sm text-foreground flex-1">{note.content}</p>
+                          <div className="flex gap-1">
+                            <Button
+                              onClick={() => handleTogglePin(note.id)}
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                            >
+                              <Pin className={cn("w-4 h-4", note.isPinned && "fill-primary text-primary")} />
+                            </Button>
+                            <Button
+                              onClick={() => handleDeleteNote(note.id)}
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {new Date(note.createdAt).toLocaleString('ko-KR')}
+                        </p>
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  아직 메모가 없습니다
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="pt-4 border-t">
+            <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">하위 목표</h3>
               <Button onClick={handleAddSubGoal} size="sm" variant="outline">
                 <Plus className="w-4 h-4 mr-1" />
@@ -297,5 +383,51 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete }: GoalD
         </div>
       </DialogContent>
     </Dialog>
+  );
+};
+
+const NoteInput = ({ onAddNote }: { onAddNote: (content: string, createdAt: string, isPinned: boolean) => void }) => {
+  const [content, setContent] = useState('');
+  const [createdAt, setCreatedAt] = useState(new Date().toISOString().split('T')[0]);
+  const [isPinned, setIsPinned] = useState(false);
+
+  const handleAdd = () => {
+    if (!content.trim()) return;
+    onAddNote(content, createdAt, isPinned);
+    setContent('');
+    setCreatedAt(new Date().toISOString().split('T')[0]);
+    setIsPinned(false);
+  };
+
+  return (
+    <div className="p-3 bg-card border-2 border-border rounded-lg space-y-2">
+      <Textarea
+        placeholder="메모 내용을 입력하세요..."
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        rows={3}
+      />
+      <div className="flex items-center gap-2">
+        <Input
+          type="date"
+          value={createdAt}
+          onChange={(e) => setCreatedAt(e.target.value)}
+          className="flex-1"
+        />
+        <Button
+          onClick={() => setIsPinned(!isPinned)}
+          variant={isPinned ? "default" : "outline"}
+          size="sm"
+          className="gap-1"
+        >
+          <Pin className={cn("w-4 h-4", isPinned && "fill-current")} />
+          {isPinned ? '중요' : '일반'}
+        </Button>
+        <Button onClick={handleAdd} size="sm">
+          <Plus className="w-4 h-4 mr-1" />
+          추가
+        </Button>
+      </div>
+    </div>
   );
 };
