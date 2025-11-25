@@ -269,19 +269,25 @@ const Index = () => {
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
-      setGoals((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over.id);
+      setGoals((allGoals) => {
+        // Find indices in the full goals array (not filtered)
+        const oldIndex = allGoals.findIndex((item) => item.id === active.id);
+        const newIndex = allGoals.findIndex((item) => item.id === over.id);
 
-        const reordered = arrayMove(items, oldIndex, newIndex);
-        // Update order property for all goals
+        if (oldIndex === -1 || newIndex === -1) return allGoals;
+
+        // Reorder the full array
+        const reordered = arrayMove(allGoals, oldIndex, newIndex);
+
+        // Update order property for all goals to match their new positions
         const updatedGoals = reordered.map((goal, index) => ({ ...goal, order: index }));
 
-        // Save new order to API
+        // Save new order to API (only send goals that changed order)
         api.reorderGoals(
           updatedGoals.map((g) => ({ id: g.id, order: g.order ?? 0 }))
         ).catch((error) => {
           console.error('Failed to save order:', error);
+          alert('순서 저장에 실패했습니다.');
         });
 
         return updatedGoals;

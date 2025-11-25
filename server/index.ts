@@ -133,12 +133,25 @@ app.post('/api/goals', async (req: Request, res: Response) => {
         categoryId: categoryRecord.id,
         subGoals: subGoals
           ? {
-              create: subGoals,
+              create: subGoals.map((sg: any) => ({
+                id: sg.id,
+                title: sg.title,
+                description: sg.description,
+                owner: sg.owner,
+                progress: sg.progress,
+                startDate: sg.startDate,
+                dueDate: sg.dueDate,
+                statusNote: sg.statusNote,
+              })),
             }
           : undefined,
         notes: notes
           ? {
-              create: notes,
+              create: notes.map((note: any) => ({
+                id: note.id,
+                content: note.content,
+                isPinned: note.isPinned,
+              })),
             }
           : undefined,
       },
@@ -156,6 +169,32 @@ app.post('/api/goals', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error creating goal:', error);
     res.status(500).json({ error: 'Failed to create goal' });
+  }
+});
+
+// Bulk update goal orders (for drag and drop)
+// IMPORTANT: This must be before /api/goals/:id to avoid route matching issues
+app.put('/api/goals/reorder', async (req: Request, res: Response) => {
+  try {
+    const { goals } = req.body;
+
+    if (!goals || !Array.isArray(goals)) {
+      return res.status(400).json({ error: 'Invalid request: goals must be an array' });
+    }
+
+    await Promise.all(
+      goals.map((goal: { id: string; order: number }) =>
+        prisma.goal.update({
+          where: { id: goal.id },
+          data: { order: goal.order },
+        })
+      )
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error reordering goals:', error);
+    res.status(500).json({ error: 'Failed to reorder goals', details: error });
   }
 });
 
@@ -209,7 +248,6 @@ app.put('/api/goals/:id', async (req: Request, res: Response) => {
                 id: note.id,
                 content: note.content,
                 isPinned: note.isPinned,
-                createdAt: note.createdAt,
               })),
             }
           : undefined,
@@ -240,26 +278,6 @@ app.delete('/api/goals/:id', async (req: Request, res: Response) => {
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete goal' });
-  }
-});
-
-// Bulk update goal orders (for drag and drop)
-app.put('/api/goals/reorder', async (req: Request, res: Response) => {
-  try {
-    const { goals } = req.body;
-
-    await Promise.all(
-      goals.map((goal: { id: string; order: number }) =>
-        prisma.goal.update({
-          where: { id: goal.id },
-          data: { order: goal.order },
-        })
-      )
-    );
-
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to reorder goals' });
   }
 });
 

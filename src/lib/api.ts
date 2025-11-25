@@ -1,14 +1,15 @@
 import { Goal, GoalCategory } from '@/types/goal';
 
-// 브라우저가 접속한 호스트의 3001 포트를 API 서버로 사용
+// API 기본 URL 설정
 const getApiBaseUrl = () => {
+  // 환경변수로 API URL이 지정된 경우
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
 
-  // 개발 모드에서는 localhost 사용
+  // 개발 모드: Vite proxy 사용 (같은 호스트로 요청)
   if (import.meta.env.DEV) {
-    return 'http://localhost:3001';
+    return '';  // 상대 경로 사용, Vite proxy가 /api를 localhost:3001로 전달
   }
 
   // 프로덕션: 현재 브라우저 호스트의 3001 포트 사용

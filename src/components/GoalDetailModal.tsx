@@ -63,16 +63,16 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete, categor
     setEditedGoal({ ...editedGoal, subGoals: updatedSubGoals, progress: newProgress });
   };
 
-  const handleAddNote = (content: string, createdAt: string, isPinned: boolean) => {
+  const handleAddNote = (content: string, isPinned: boolean) => {
     if (!content.trim()) return;
-    
+
     const newNote: Note = {
       id: uuidv4(),
       content,
-      createdAt,
+      createdAt: new Date().toISOString(),
       isPinned,
     };
-    
+
     const updatedNotes = [...(editedGoal.notes || []), newNote];
     setEditedGoal({ ...editedGoal, notes: updatedNotes });
   };
@@ -388,16 +388,14 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete, categor
   );
 };
 
-const NoteInput = ({ onAddNote }: { onAddNote: (content: string, createdAt: string, isPinned: boolean) => void }) => {
+const NoteInput = ({ onAddNote }: { onAddNote: (content: string, isPinned: boolean) => void }) => {
   const [content, setContent] = useState('');
-  const [createdAt, setCreatedAt] = useState(new Date().toISOString().split('T')[0]);
   const [isPinned, setIsPinned] = useState(false);
 
   const handleAdd = () => {
     if (!content.trim()) return;
-    onAddNote(content, createdAt, isPinned);
+    onAddNote(content, isPinned);
     setContent('');
-    setCreatedAt(new Date().toISOString().split('T')[0]);
     setIsPinned(false);
   };
 
@@ -409,13 +407,7 @@ const NoteInput = ({ onAddNote }: { onAddNote: (content: string, createdAt: stri
         onChange={(e) => setContent(e.target.value)}
         rows={3}
       />
-      <div className="flex items-center gap-2">
-        <Input
-          type="date"
-          value={createdAt}
-          onChange={(e) => setCreatedAt(e.target.value)}
-          className="flex-1"
-        />
+      <div className="flex items-center gap-2 justify-end">
         <Button
           onClick={() => setIsPinned(!isPinned)}
           variant={isPinned ? "default" : "outline"}
