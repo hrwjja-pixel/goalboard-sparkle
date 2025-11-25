@@ -97,11 +97,10 @@ export const FilterBar = ({
           {categories.map((category) => (
             <div key={category} className="relative group">
               <Button
-                variant="outline"
                 size="sm"
                 onClick={() => onCategoryToggle(category)}
                 className={cn(
-                  'transition-all pr-8',
+                  'transition-all pr-8 border-2',
                   selectedCategories.includes(category) 
                     ? 'bg-primary text-primary-foreground border-primary hover:bg-primary/90' 
                     : getCategoryButtonClass(category)
