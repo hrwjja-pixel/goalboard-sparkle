@@ -228,6 +228,7 @@ const Index = () => {
           goals={goals} 
           filteredGoals={filteredGoals}
           onAddGoal={() => setIsAddModalOpen(true)}
+          categoryColors={categoryColors}
         />
 
         <FilterBar
