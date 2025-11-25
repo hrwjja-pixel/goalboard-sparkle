@@ -1,6 +1,7 @@
 import { GoalCategory } from '@/types/goal';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, Filter, Plus, X, ChevronDown, Palette } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -49,18 +50,6 @@ export const FilterBar = ({
     }
   };
 
-  const getCategoryButtonStyle = (category: GoalCategory, isSelected: boolean) => {
-    if (isSelected) {
-      return {}; // Use default primary styles for selected
-    }
-    
-    const color = categoryColors[category] || '#6b7280';
-    return {
-      backgroundColor: `${color}15`,
-      color: color,
-      borderColor: `${color}50`,
-    };
-  };
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="bg-card rounded-lg shadow-md mb-6 border border-border">
@@ -105,24 +94,29 @@ export const FilterBar = ({
             
             return (
               <div key={category} className="relative group">
-                <Button
-                  size="sm"
-                  variant={isSelected ? "default" : "ghost"}
+                <div
                   onClick={() => onCategoryToggle(category)}
-                  style={!isSelected ? {
-                    backgroundColor: `${color}15`,
-                    color: color,
-                    borderColor: `${color}50`,
-                  } : undefined}
                   className={cn(
-                    'transition-all pr-16 border-2',
+                    'flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 transition-all cursor-pointer pr-16',
                     isSelected 
-                      ? 'bg-primary text-primary-foreground border-primary hover:bg-primary/90' 
+                      ? 'bg-primary/10 border-primary/30' 
                       : 'hover:opacity-80'
                   )}
+                  style={!isSelected ? {
+                    backgroundColor: `${color}10`,
+                    borderColor: `${color}40`,
+                  } : undefined}
                 >
-                  {category}
-                </Button>
+                  <Badge
+                    style={{
+                      backgroundColor: color,
+                      color: '#ffffff',
+                    }}
+                    className="text-xs font-semibold"
+                  >
+                    {category}
+                  </Badge>
+                </div>
               <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={(e) => {
