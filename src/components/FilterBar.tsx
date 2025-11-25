@@ -2,9 +2,10 @@ import { GoalCategory } from '@/types/goal';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Filter, Plus, X } from 'lucide-react';
+import { Search, Filter, Plus, X, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface FilterBarProps {
   searchText: string;
@@ -33,6 +34,7 @@ export const FilterBar = ({
 }: FilterBarProps) => {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
 
   const handleAddCategoryClick = () => {
     if (newCategoryName.trim()) {
@@ -42,27 +44,31 @@ export const FilterBar = ({
     }
   };
 
-  const categoryColors = [
-    'bg-blue-500/10 text-blue-500 hover:bg-blue-500/20',
-    'bg-purple-500/10 text-purple-500 hover:bg-purple-500/20',
-    'bg-green-500/10 text-green-500 hover:bg-green-500/20',
-    'bg-orange-500/10 text-orange-500 hover:bg-orange-500/20',
-    'bg-pink-500/10 text-pink-500 hover:bg-pink-500/20',
-    'bg-teal-500/10 text-teal-500 hover:bg-teal-500/20',
-  ];
-
-  const getCategoryColor = (index: number) => {
-    return categoryColors[index % categoryColors.length];
+  const getCategoryButtonClass = (category: GoalCategory) => {
+    switch (category) {
+      case 'SERVICE':
+        return 'bg-[hsl(var(--service-light))] text-[hsl(var(--service))] hover:bg-[hsl(var(--service-light))]/80 border-[hsl(var(--service-border))]/20';
+      case 'AI':
+        return 'bg-[hsl(var(--ai-light))] text-[hsl(var(--ai))] hover:bg-[hsl(var(--ai-light))]/80 border-[hsl(var(--ai-border))]/20';
+      case 'OPERATIONS':
+        return 'bg-[hsl(var(--operations-light))] text-[hsl(var(--operations))] hover:bg-[hsl(var(--operations-light))]/80 border-[hsl(var(--operations-border))]/20';
+      default:
+        return 'bg-muted text-muted-foreground hover:bg-muted/80';
+    }
   };
 
   return (
-    <div className="bg-card rounded-lg shadow-md p-6 mb-6 border border-border">
-      <div className="flex items-center gap-2 mb-4">
-        <Filter className="w-5 h-5 text-muted-foreground" />
-        <h3 className="font-semibold text-lg">필터</h3>
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="bg-card rounded-lg shadow-md mb-6 border border-border">
+      <div className="p-6 pb-4">
+        <CollapsibleTrigger className="flex items-center gap-2 w-full hover:opacity-70 transition-opacity">
+          <Filter className="w-5 h-5 text-muted-foreground" />
+          <h3 className="font-semibold text-lg">필터</h3>
+          <ChevronDown className={cn("w-5 h-5 text-muted-foreground transition-transform ml-auto", isOpen && "rotate-180")} />
+        </CollapsibleTrigger>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <CollapsibleContent className="px-6 pb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -88,15 +94,17 @@ export const FilterBar = ({
         </Select>
         
         <div className="col-span-1 md:col-span-2 flex flex-wrap gap-2">
-          {categories.map((category, index) => (
+          {categories.map((category) => (
             <div key={category} className="relative group">
               <Button
-                variant={selectedCategories.includes(category) ? 'default' : 'outline'}
+                variant="outline"
                 size="sm"
                 onClick={() => onCategoryToggle(category)}
                 className={cn(
                   'transition-all pr-8',
-                  !selectedCategories.includes(category) && getCategoryColor(index)
+                  selectedCategories.includes(category) 
+                    ? 'bg-primary text-primary-foreground border-primary hover:bg-primary/90' 
+                    : getCategoryButtonClass(category)
                 )}
               >
                 {category}
@@ -156,6 +164,7 @@ export const FilterBar = ({
           )}
         </div>
       </div>
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 };
