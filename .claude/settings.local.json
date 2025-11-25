@@ -14,7 +14,8 @@
       "Bash(/usr/libexec/ApplicationFirewall/socketfilterfw:*)",
       "Bash(npx serve:*)",
       "Bash(npx http-server dist -p 8080 -a 0.0.0.0 --proxy http://localhost:3001?)",
-      "Bash(npx http-server:*)"
+      "Bash(npx http-server:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
