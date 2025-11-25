@@ -2,9 +2,9 @@ import { GoalCategory } from '@/types/goal';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Filter, Plus, X, ChevronDown } from 'lucide-react';
+import { Search, Filter, Plus, X, ChevronDown, Palette } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface FilterBarProps {
@@ -16,8 +16,10 @@ interface FilterBarProps {
   onCategoryToggle: (category: GoalCategory) => void;
   owners: string[];
   categories: GoalCategory[];
+  categoryColors: Record<string, string>;
   onAddCategory: (category: string) => void;
   onDeleteCategory: (category: string) => void;
+  onCategoryColorChange: (category: string, color: string) => void;
 }
 
 export const FilterBar = ({
@@ -29,12 +31,16 @@ export const FilterBar = ({
   onCategoryToggle,
   owners,
   categories,
+  categoryColors,
   onAddCategory,
   onDeleteCategory,
+  onCategoryColorChange,
 }: FilterBarProps) => {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [isOpen, setIsOpen] = useState(true);
+  const [editingColor, setEditingColor] = useState<string | null>(null);
+  const colorInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const handleAddCategoryClick = () => {
     if (newCategoryName.trim()) {
@@ -44,17 +50,13 @@ export const FilterBar = ({
     }
   };
 
-  const getCategoryButtonClass = (category: GoalCategory) => {
-    switch (category) {
-      case 'SERVICE':
-        return 'bg-service-light text-service hover:bg-service-light/80 border-service-border/20';
-      case 'AI':
-        return 'bg-ai-light text-ai hover:bg-ai-light/80 border-ai-border/20';
-      case 'OPERATIONS':
-        return 'bg-operations-light text-operations hover:bg-operations-light/80 border-operations-border/20';
-      default:
-        return 'bg-muted text-muted-foreground hover:bg-muted/80 border-border';
-    }
+  const getCategoryButtonStyle = (category: GoalCategory) => {
+    const color = categoryColors[category] || '#6b7280';
+    return {
+      backgroundColor: `${color}20`,
+      color: color,
+      borderColor: `${color}40`,
+    };
   };
 
   return (
@@ -99,24 +101,49 @@ export const FilterBar = ({
               <Button
                 size="sm"
                 onClick={() => onCategoryToggle(category)}
+                style={!selectedCategories.includes(category) ? getCategoryButtonStyle(category) : undefined}
                 className={cn(
-                  'transition-all pr-8 border-2',
+                  'transition-all pr-16 border-2',
                   selectedCategories.includes(category) 
                     ? 'bg-primary text-primary-foreground border-primary hover:bg-primary/90' 
-                    : getCategoryButtonClass(category)
+                    : 'hover:opacity-80'
                 )}
               >
                 {category}
               </Button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDeleteCategory(category);
-                }}
-                className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/20 rounded"
-              >
-                <X className="w-3 h-3 text-destructive" />
-              </button>
+              <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingColor(category);
+                    setTimeout(() => colorInputRefs.current[category]?.click(), 0);
+                  }}
+                  className="p-1 hover:bg-accent/20 rounded"
+                  title="색상 변경"
+                >
+                  <Palette className="w-3 h-3" />
+                  <input
+                    ref={(el) => (colorInputRefs.current[category] = el)}
+                    type="color"
+                    value={categoryColors[category] || '#6b7280'}
+                    onChange={(e) => {
+                      onCategoryColorChange(category, e.target.value);
+                      setEditingColor(null);
+                    }}
+                    className="absolute opacity-0 w-0 h-0"
+                  />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteCategory(category);
+                  }}
+                  className="p-1 hover:bg-destructive/20 rounded"
+                  title="카테고리 삭제"
+                >
+                  <X className="w-3 h-3 text-destructive" />
+                </button>
+              </div>
             </div>
           ))}
           
