@@ -79,7 +79,7 @@ export const AddGoalModal = ({ open, onClose, onAdd, categories }: AddGoalModalP
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl">새 목표 추가</DialogTitle>
         </DialogHeader>

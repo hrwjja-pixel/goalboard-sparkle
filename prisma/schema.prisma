@@ -1,0 +1,71 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  color     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  goals     Goal[]
+}
+
+model Goal {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  owner       String
+  categoryId  String
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  progress    Int       @default(0)
+  size        String    @default("medium")
+  startDate   String?
+  dueDate     String?
+  statusNote  String?
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  subGoals    SubGoal[]
+  notes       Note[]
+
+  @@index([categoryId])
+  @@index([owner])
+}
+
+model SubGoal {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  owner       String
+  progress    Int      @default(0)
+  startDate   String?
+  dueDate     String?
+  statusNote  String?
+  goalId      String
+  goal        Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([goalId])
+}
+
+model Note {
+  id        String   @id @default(uuid())
+  content   String
+  isPinned  Boolean  @default(false)
+  goalId    String
+  goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([goalId])
+}

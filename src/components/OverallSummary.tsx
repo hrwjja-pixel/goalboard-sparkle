@@ -36,8 +36,8 @@ export const OverallSummary = ({ goals, filteredGoals, onAddGoal, categoryColors
     <div className="bg-card rounded-xl shadow-lg p-5 mb-6 border border-border">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-2xl font-bold mb-1">팀 목표 대시보드</h2>
-          <p className="text-sm text-muted-foreground">Healthcare IT Planning Team</p>
+          <h2 className="text-2xl font-bold mb-1">WEHAGO H 목표 대시보드</h2>
+          <p className="text-sm text-muted-foreground">EMR개발본부 &gt; WEHAGO H 개발센터</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-lg">

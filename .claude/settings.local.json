@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "Bash(npm install:*)",
+      "Bash(lsof:*)",
+      "Bash(npx prisma:*)",
+      "Bash(npm run server:*)",
+      "Bash(curl:*)",
+      "Bash(tsx server/migrate-data.ts:*)",
+      "Bash(npx tsx:*)",
+      "Bash(npm run build:*)",
+      "Bash(kill:*)",
+      "Bash(/usr/libexec/ApplicationFirewall/socketfilterfw:*)",
+      "Bash(npx serve:*)",
+      "Bash(npx http-server dist -p 8080 -a 0.0.0.0 --proxy http://localhost:3001?)",
+      "Bash(npx http-server:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

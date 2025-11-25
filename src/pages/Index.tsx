@@ -23,21 +23,20 @@ import {
   sortableKeyboardCoordinates,
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
-
-const STORAGE_KEY = 'team-goals';
-const CATEGORIES_STORAGE_KEY = 'team-categories';
-const CATEGORY_COLORS_STORAGE_KEY = 'team-category-colors';
+import { api } from '@/lib/api';
 
 const Index = () => {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [categories, setCategories] = useState<GoalCategory[]>([]);
   const [categoryColors, setCategoryColors] = useState<Record<string, string>>({});
+  const [categoryIds, setCategoryIds] = useState<Record<string, string>>({});
   const [searchText, setSearchText] = useState('');
   const [selectedOwner, setSelectedOwner] = useState('all');
   const [selectedCategories, setSelectedCategories] = useState<GoalCategory[]>([]);
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -46,74 +45,49 @@ const Index = () => {
     })
   );
 
-  // Load categories and goals from localStorage
+  // Load categories and goals from API
   useEffect(() => {
-    const storedCategories = localStorage.getItem(CATEGORIES_STORAGE_KEY);
-    const defaultCategories = ['SERVICE', 'AI', 'OPERATIONS'];
-    const defaultColors = {
-      'SERVICE': '#3b82f6',
-      'AI': '#8b5cf6', 
-      'OPERATIONS': '#10b981'
-    };
-    
-    if (storedCategories) {
+    const loadData = async () => {
       try {
-        const parsedCategories = JSON.parse(storedCategories);
-        setCategories(parsedCategories);
-        setSelectedCategories(parsedCategories);
-      } catch {
+        setIsLoading(true);
+
+        // Load categories
+        const categoriesData = await api.getCategories();
+        const categoryNames = categoriesData.map((c) => c.name);
+        const colors: Record<string, string> = {};
+        const ids: Record<string, string> = {};
+
+        categoriesData.forEach((c) => {
+          colors[c.name] = c.color;
+          ids[c.name] = c.id;
+        });
+
+        setCategories(categoryNames);
+        setSelectedCategories(categoryNames);
+        setCategoryColors(colors);
+        setCategoryIds(ids);
+
+        // Load goals
+        const goalsData = await api.getGoals();
+        setGoals(goalsData);
+      } catch (error) {
+        console.error('Failed to load data:', error);
+        // Fallback to default data
+        const defaultCategories = ['SERVICE', 'AI', 'OPERATIONS'];
         setCategories(defaultCategories);
         setSelectedCategories(defaultCategories);
+        setCategoryColors({
+          'SERVICE': '#3b82f6',
+          'AI': '#8b5cf6',
+          'OPERATIONS': '#10b981'
+        });
+      } finally {
+        setIsLoading(false);
       }
-    } else {
-      setCategories(defaultCategories);
-      setSelectedCategories(defaultCategories);
-      localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(defaultCategories));
-    }
+    };
 
-    const storedColors = localStorage.getItem(CATEGORY_COLORS_STORAGE_KEY);
-    if (storedColors) {
-      try {
-        setCategoryColors(JSON.parse(storedColors));
-      } catch {
-        setCategoryColors(defaultColors);
-        localStorage.setItem(CATEGORY_COLORS_STORAGE_KEY, JSON.stringify(defaultColors));
-      }
-    } else {
-      setCategoryColors(defaultColors);
-      localStorage.setItem(CATEGORY_COLORS_STORAGE_KEY, JSON.stringify(defaultColors));
-    }
-
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        setGoals(JSON.parse(stored));
-      } catch {
-        setGoals(initialGoals);
-      }
-    } else {
-      setGoals(initialGoals);
-    }
+    loadData();
   }, []);
-
-  // Save goals and categories to localStorage
-  useEffect(() => {
-    if (goals.length > 0) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(goals));
-    }
-  }, [goals]);
-
-  useEffect(() => {
-    if (categories.length > 0) {
-      localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(categories));
-    }
-  }, [categories]);
-
-  useEffect(() => {
-    if (Object.keys(categoryColors).length > 0) {
-      localStorage.setItem(CATEGORY_COLORS_STORAGE_KEY, JSON.stringify(categoryColors));
-    }
-  }, [categoryColors]);
 
   // Get unique owners
   const owners = useMemo(() => {
@@ -160,45 +134,130 @@ const Index = () => {
     );
   };
 
-  const handleSaveGoal = (updatedGoal: Goal) => {
-    setGoals((prev) =>
-      prev.map((g) => (g.id === updatedGoal.id ? updatedGoal : g))
-    );
+  const handleSaveGoal = async (updatedGoal: Goal) => {
+    try {
+      await api.updateGoal(updatedGoal.id, updatedGoal);
+      setGoals((prev) =>
+        prev.map((g) => (g.id === updatedGoal.id ? updatedGoal : g))
+      );
+    } catch (error) {
+      console.error('Failed to save goal:', error);
+      alert('목표 저장에 실패했습니다.');
+    }
   };
 
-  const handleDeleteGoal = (goalId: string) => {
-    setGoals((prev) => prev.filter((g) => g.id !== goalId));
+  const handleDeleteGoal = async (goalId: string) => {
+    try {
+      await api.deleteGoal(goalId);
+      setGoals((prev) => prev.filter((g) => g.id !== goalId));
+    } catch (error) {
+      console.error('Failed to delete goal:', error);
+      alert('목표 삭제에 실패했습니다.');
+    }
   };
 
-  const handleAddGoal = (newGoal: Goal) => {
-    setGoals((prev) => {
-      const maxOrder = Math.max(...prev.map((g) => g.order ?? 0), -1);
-      return [...prev, { ...newGoal, order: maxOrder + 1 }];
-    });
+  const handleAddGoal = async (newGoal: Goal) => {
+    try {
+      const maxOrder = Math.max(...goals.map((g) => g.order ?? 0), -1);
+      const goalWithOrder = { ...newGoal, order: maxOrder + 1 };
+      const createdGoal = await api.createGoal(goalWithOrder);
+      setGoals((prev) => [...prev, createdGoal]);
+    } catch (error) {
+      console.error('Failed to add goal:', error);
+      alert('목표 추가에 실패했습니다.');
+    }
   };
 
-  const handleAddCategory = (newCategory: string) => {
+  const handleAddCategory = async (newCategory: string) => {
     if (!newCategory.trim() || categories.includes(newCategory.trim())) return;
     const trimmedCategory = newCategory.trim();
-    setCategories((prev) => [...prev, trimmedCategory]);
-    setSelectedCategories((prev) => [...prev, trimmedCategory]);
-    // Set default color for new category
-    setCategoryColors((prev) => ({ ...prev, [trimmedCategory]: '#6b7280' }));
+
+    try {
+      const category = await api.createCategory(trimmedCategory, '#6b7280');
+      setCategories((prev) => [...prev, trimmedCategory]);
+      setSelectedCategories((prev) => [...prev, trimmedCategory]);
+      setCategoryColors((prev) => ({ ...prev, [trimmedCategory]: '#6b7280' }));
+      setCategoryIds((prev) => ({ ...prev, [trimmedCategory]: category.id }));
+    } catch (error) {
+      console.error('Failed to add category:', error);
+      alert('카테고리 추가에 실패했습니다.');
+    }
   };
 
-  const handleCategoryColorChange = (category: string, color: string) => {
-    setCategoryColors((prev) => ({ ...prev, [category]: color }));
+  const handleCategoryColorChange = async (category: string, color: string) => {
+    try {
+      const categoryId = categoryIds[category];
+      if (categoryId) {
+        await api.updateCategoryColor(categoryId, color);
+        setCategoryColors((prev) => ({ ...prev, [category]: color }));
+      }
+    } catch (error) {
+      console.error('Failed to update category color:', error);
+      alert('카테고리 색상 변경에 실패했습니다.');
+    }
   };
 
-  const handleDeleteCategory = (categoryToDelete: string) => {
+  const handleCategoryNameChange = async (oldName: string, newName: string) => {
+    if (!newName.trim() || oldName === newName) return;
+
+    try {
+      const categoryId = categoryIds[oldName];
+      if (categoryId) {
+        await api.updateCategoryName(categoryId, newName);
+
+        // Update categories list
+        setCategories((prev) => prev.map((c) => c === oldName ? newName : c));
+
+        // Update selected categories
+        setSelectedCategories((prev) => prev.map((c) => c === oldName ? newName : c));
+
+        // Update category colors map
+        const oldColor = categoryColors[oldName];
+        setCategoryColors((prev) => {
+          const updated = { ...prev };
+          delete updated[oldName];
+          updated[newName] = oldColor;
+          return updated;
+        });
+
+        // Update category IDs map
+        setCategoryIds((prev) => {
+          const updated = { ...prev };
+          delete updated[oldName];
+          updated[newName] = categoryId;
+          return updated;
+        });
+
+        // Update goals that use this category
+        setGoals((prev) => prev.map((g) =>
+          g.category === oldName ? { ...g, category: newName } : g
+        ));
+      }
+    } catch (error) {
+      console.error('Failed to update category name:', error);
+      alert('카테고리 이름 변경에 실패했습니다.');
+    }
+  };
+
+  const handleDeleteCategory = async (categoryToDelete: string) => {
     // Don't allow deletion if goals exist with this category
     const hasGoalsWithCategory = goals.some((g) => g.category === categoryToDelete);
     if (hasGoalsWithCategory) {
       alert('이 카테고리를 사용하는 목표가 있어 삭제할 수 없습니다.');
       return;
     }
-    setCategories((prev) => prev.filter((c) => c !== categoryToDelete));
-    setSelectedCategories((prev) => prev.filter((c) => c !== categoryToDelete));
+
+    try {
+      const categoryId = categoryIds[categoryToDelete];
+      if (categoryId) {
+        await api.deleteCategory(categoryId);
+        setCategories((prev) => prev.filter((c) => c !== categoryToDelete));
+        setSelectedCategories((prev) => prev.filter((c) => c !== categoryToDelete));
+      }
+    } catch (error) {
+      console.error('Failed to delete category:', error);
+      alert('카테고리 삭제에 실패했습니다.');
+    }
   };
 
   const handleCardClick = (goal: Goal) => {
@@ -206,26 +265,45 @@ const Index = () => {
     setIsDetailModalOpen(true);
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
       setGoals((items) => {
         const oldIndex = items.findIndex((item) => item.id === active.id);
         const newIndex = items.findIndex((item) => item.id === over.id);
-        
+
         const reordered = arrayMove(items, oldIndex, newIndex);
         // Update order property for all goals
-        return reordered.map((goal, index) => ({ ...goal, order: index }));
+        const updatedGoals = reordered.map((goal, index) => ({ ...goal, order: index }));
+
+        // Save new order to API
+        api.reorderGoals(
+          updatedGoals.map((g) => ({ id: g.id, order: g.order ?? 0 }))
+        ).catch((error) => {
+          console.error('Failed to save order:', error);
+        });
+
+        return updatedGoals;
       });
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-xl text-muted-foreground">데이터 로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="w-full px-6 py-6">
-        <OverallSummary 
-          goals={goals} 
+        <OverallSummary
+          goals={goals}
           filteredGoals={filteredGoals}
           onAddGoal={() => setIsAddModalOpen(true)}
           categoryColors={categoryColors}
@@ -244,6 +322,7 @@ const Index = () => {
           onAddCategory={handleAddCategory}
           onDeleteCategory={handleDeleteCategory}
           onCategoryColorChange={handleCategoryColorChange}
+          onCategoryNameChange={handleCategoryNameChange}
         />
 
         <DndContext

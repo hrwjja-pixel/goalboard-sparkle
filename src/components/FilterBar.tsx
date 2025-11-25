@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Filter, Plus, X, ChevronDown, Palette } from 'lucide-react';
+import { Search, Filter, Plus, X, ChevronDown, Palette, Edit2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -21,6 +21,7 @@ interface FilterBarProps {
   onAddCategory: (category: string) => void;
   onDeleteCategory: (category: string) => void;
   onCategoryColorChange: (category: string, color: string) => void;
+  onCategoryNameChange?: (oldName: string, newName: string) => void;
 }
 
 export const FilterBar = ({
@@ -36,11 +37,14 @@ export const FilterBar = ({
   onAddCategory,
   onDeleteCategory,
   onCategoryColorChange,
+  onCategoryNameChange,
 }: FilterBarProps) => {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [isOpen, setIsOpen] = useState(true);
   const [editingColor, setEditingColor] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState<string | null>(null);
+  const [tempCategoryName, setTempCategoryName] = useState('');
 
   const handleAddCategoryClick = () => {
     if (newCategoryName.trim()) {
@@ -91,15 +95,17 @@ export const FilterBar = ({
           {categories.map((category) => {
             const isSelected = selectedCategories.includes(category);
             const color = categoryColors[category] || '#6b7280';
-            
+            const isEditingThisName = editingName === category;
+
             return (
               <div key={category} className="relative group">
                 <div
-                  onClick={() => onCategoryToggle(category)}
+                  onClick={() => !isEditingThisName && onCategoryToggle(category)}
                   className={cn(
-                    'flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 transition-all cursor-pointer pr-16',
-                    isSelected 
-                      ? 'bg-primary/10 border-primary/30' 
+                    'flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 transition-all pr-20',
+                    !isEditingThisName && 'cursor-pointer',
+                    isSelected
+                      ? 'bg-primary/10 border-primary/30'
                       : 'hover:opacity-80'
                   )}
                   style={!isSelected ? {
@@ -107,21 +113,55 @@ export const FilterBar = ({
                     borderColor: `${color}40`,
                   } : undefined}
                 >
-                  <Badge
-                    style={{
-                      backgroundColor: color,
-                      color: '#ffffff',
-                    }}
-                    className="text-xs font-semibold"
-                  >
-                    {category}
-                  </Badge>
+                  {isEditingThisName ? (
+                    <Input
+                      value={tempCategoryName}
+                      onChange={(e) => setTempCategoryName(e.target.value)}
+                      className="h-6 px-2 text-xs font-semibold w-24"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && tempCategoryName.trim()) {
+                          onCategoryNameChange?.(category, tempCategoryName.trim());
+                          setEditingName(null);
+                          setTempCategoryName('');
+                        }
+                        if (e.key === 'Escape') {
+                          setEditingName(null);
+                          setTempCategoryName('');
+                        }
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <Badge
+                      style={{
+                        backgroundColor: color,
+                        color: '#ffffff',
+                      }}
+                      className="text-xs font-semibold"
+                    >
+                      {category}
+                    </Badge>
+                  )}
                 </div>
               <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
+                    setTempCategoryName(category);
+                    setEditingName(category);
+                    setEditingColor(null);
+                  }}
+                  className="p-1 hover:bg-accent/20 rounded"
+                  title="이름 변경"
+                >
+                  <Edit2 className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
                     setEditingColor(editingColor === category ? null : category);
+                    setEditingName(null);
                   }}
                   className="p-1 hover:bg-accent/20 rounded"
                   title="색상 변경"

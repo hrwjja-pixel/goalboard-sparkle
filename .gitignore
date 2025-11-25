@@ -22,3 +22,15 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+/generated/prisma
+
+# SQLite database
+*.db
+*.db-journal
+prisma/*.db
+prisma/*.db-journal
+
+# Environment variables
+.env
+.env.local
