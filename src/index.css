@@ -39,17 +39,17 @@ All colors MUST be HSL.
     --radius: 0.75rem;
     
     /* Category colors */
-    --service: 210 100% 56%;
-    --service-light: 210 100% 95%;
-    --service-border: 210 100% 70%;
+    --service: 199 89% 48%;
+    --service-light: 199 89% 96%;
+    --service-border: 199 89% 48%;
     
-    --ai: 280 80% 60%;
-    --ai-light: 280 100% 95%;
-    --ai-border: 280 80% 75%;
+    --ai: 271 91% 65%;
+    --ai-light: 271 91% 96%;
+    --ai-border: 271 91% 65%;
     
-    --operations: 142 76% 45%;
-    --operations-light: 142 76% 95%;
-    --operations-border: 142 76% 60%;
+    --operations: 142 71% 45%;
+    --operations-light: 142 71% 96%;
+    --operations-border: 142 71% 45%;
     
     /* Transitions */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
