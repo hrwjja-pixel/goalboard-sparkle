@@ -26,10 +26,12 @@ import {
 
 const STORAGE_KEY = 'team-goals';
 const CATEGORIES_STORAGE_KEY = 'team-categories';
+const CATEGORY_COLORS_STORAGE_KEY = 'team-category-colors';
 
 const Index = () => {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [categories, setCategories] = useState<GoalCategory[]>([]);
+  const [categoryColors, setCategoryColors] = useState<Record<string, string>>({});
   const [searchText, setSearchText] = useState('');
   const [selectedOwner, setSelectedOwner] = useState('all');
   const [selectedCategories, setSelectedCategories] = useState<GoalCategory[]>([]);
@@ -48,6 +50,11 @@ const Index = () => {
   useEffect(() => {
     const storedCategories = localStorage.getItem(CATEGORIES_STORAGE_KEY);
     const defaultCategories = ['SERVICE', 'AI', 'OPERATIONS'];
+    const defaultColors = {
+      'SERVICE': '#3b82f6',
+      'AI': '#8b5cf6', 
+      'OPERATIONS': '#10b981'
+    };
     
     if (storedCategories) {
       try {
@@ -62,6 +69,19 @@ const Index = () => {
       setCategories(defaultCategories);
       setSelectedCategories(defaultCategories);
       localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(defaultCategories));
+    }
+
+    const storedColors = localStorage.getItem(CATEGORY_COLORS_STORAGE_KEY);
+    if (storedColors) {
+      try {
+        setCategoryColors(JSON.parse(storedColors));
+      } catch {
+        setCategoryColors(defaultColors);
+        localStorage.setItem(CATEGORY_COLORS_STORAGE_KEY, JSON.stringify(defaultColors));
+      }
+    } else {
+      setCategoryColors(defaultColors);
+      localStorage.setItem(CATEGORY_COLORS_STORAGE_KEY, JSON.stringify(defaultColors));
     }
 
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -88,6 +108,12 @@ const Index = () => {
       localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(categories));
     }
   }, [categories]);
+
+  useEffect(() => {
+    if (Object.keys(categoryColors).length > 0) {
+      localStorage.setItem(CATEGORY_COLORS_STORAGE_KEY, JSON.stringify(categoryColors));
+    }
+  }, [categoryColors]);
 
   // Get unique owners
   const owners = useMemo(() => {
@@ -156,6 +182,12 @@ const Index = () => {
     const trimmedCategory = newCategory.trim();
     setCategories((prev) => [...prev, trimmedCategory]);
     setSelectedCategories((prev) => [...prev, trimmedCategory]);
+    // Set default color for new category
+    setCategoryColors((prev) => ({ ...prev, [trimmedCategory]: '#6b7280' }));
+  };
+
+  const handleCategoryColorChange = (category: string, color: string) => {
+    setCategoryColors((prev) => ({ ...prev, [category]: color }));
   };
 
   const handleDeleteCategory = (categoryToDelete: string) => {
@@ -207,8 +239,10 @@ const Index = () => {
           onCategoryToggle={handleCategoryToggle}
           owners={owners}
           categories={categories}
+          categoryColors={categoryColors}
           onAddCategory={handleAddCategory}
           onDeleteCategory={handleDeleteCategory}
+          onCategoryColorChange={handleCategoryColorChange}
         />
 
         <DndContext
@@ -222,7 +256,7 @@ const Index = () => {
           >
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 auto-rows-auto">
               {filteredGoals.map((goal) => (
-                <GoalCard key={goal.id} goal={goal} onClick={() => handleCardClick(goal)} />
+                <GoalCard key={goal.id} goal={goal} onClick={() => handleCardClick(goal)} categoryColors={categoryColors} />
               ))}
             </div>
           </SortableContext>

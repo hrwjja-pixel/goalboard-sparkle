@@ -9,32 +9,35 @@ import { CSS } from '@dnd-kit/utilities';
 interface GoalCardProps {
   goal: Goal;
   onClick: () => void;
+  categoryColors?: Record<string, string>;
 }
 
-const getCategoryClass = (category: GoalCategory) => {
-  switch (category) {
-    case 'SERVICE':
-      return 'goal-card-service';
-    case 'AI':
-      return 'goal-card-ai';
-    case 'OPERATIONS':
-      return 'goal-card-operations';
-    default:
-      return 'goal-card-service'; // fallback
+const getCategoryStyle = (category: GoalCategory, categoryColors?: Record<string, string>) => {
+  const color = categoryColors?.[category];
+  if (!color) {
+    // Fallback to default styles if no custom color
+    switch (category) {
+      case 'SERVICE':
+        return { className: 'goal-card-service', badgeClassName: 'badge-service' };
+      case 'AI':
+        return { className: 'goal-card-ai', badgeClassName: 'badge-ai' };
+      case 'OPERATIONS':
+        return { className: 'goal-card-operations', badgeClassName: 'badge-operations' };
+      default:
+        return { className: 'goal-card-service', badgeClassName: 'badge-service' };
+    }
   }
-};
-
-const getCategoryBadgeClass = (category: GoalCategory) => {
-  switch (category) {
-    case 'SERVICE':
-      return 'badge-service';
-    case 'AI':
-      return 'badge-ai';
-    case 'OPERATIONS':
-      return 'badge-operations';
-    default:
-      return 'badge-service'; // fallback
-  }
+  
+  return {
+    style: {
+      backgroundColor: `${color}10`,
+      borderColor: `${color}60`,
+    },
+    badgeStyle: {
+      backgroundColor: color,
+      color: '#ffffff',
+    },
+  };
 };
 
 const getSizeClass = (size: GoalSize) => {
@@ -71,7 +74,7 @@ const getSizeBadge = (size: GoalSize) => {
   }
 };
 
-export const GoalCard = ({ goal, onClick }: GoalCardProps) => {
+export const GoalCard = ({ goal, onClick, categoryColors }: GoalCardProps) => {
   const {
     attributes,
     listeners,
@@ -96,15 +99,16 @@ export const GoalCard = ({ goal, onClick }: GoalCardProps) => {
   };
 
   const sizeBadge = getSizeBadge(goal.size);
+  const categoryStyle = getCategoryStyle(goal.category, categoryColors);
 
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{ ...style, ...categoryStyle.style }}
       className={cn(
         'rounded-xl border-2 p-6 cursor-pointer transition-all duration-300',
         'hover:shadow-xl hover:-translate-y-1 animate-fade-in relative',
-        getCategoryClass(goal.category),
+        categoryStyle.className,
         getSizeClass(goal.size),
         isDragging && 'opacity-50 z-50'
       )}
@@ -120,7 +124,10 @@ export const GoalCard = ({ goal, onClick }: GoalCardProps) => {
       <div onClick={onClick}>
       <div className="flex items-start justify-between mb-4 gap-2 flex-wrap">
         <div className="flex gap-2">
-          <Badge className={cn('text-xs font-semibold', getCategoryBadgeClass(goal.category))}>
+          <Badge 
+            style={categoryStyle.badgeStyle}
+            className={cn('text-xs font-semibold', categoryStyle.badgeClassName)}
+          >
             {goal.category}
           </Badge>
           <Badge className={cn('text-xs font-semibold', sizeBadge.color)}>
