@@ -11,7 +11,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "tsx server/production.ts",
+    "start": "node server/production.js",
     "prod": "npm run build && npm run start"
   },
   "dependencies": {
