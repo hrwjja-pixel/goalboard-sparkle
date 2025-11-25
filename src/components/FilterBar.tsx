@@ -107,6 +107,7 @@ export const FilterBar = ({
               <div key={category} className="relative group">
                 <Button
                   size="sm"
+                  variant={isSelected ? "default" : "ghost"}
                   onClick={() => onCategoryToggle(category)}
                   style={!isSelected ? {
                     backgroundColor: `${color}15`,
