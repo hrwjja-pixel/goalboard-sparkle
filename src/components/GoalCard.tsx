@@ -19,6 +19,8 @@ const getCategoryClass = (category: GoalCategory) => {
       return 'goal-card-ai';
     case 'OPERATIONS':
       return 'goal-card-operations';
+    default:
+      return 'goal-card-service'; // fallback
   }
 };
 
@@ -30,6 +32,8 @@ const getCategoryBadgeClass = (category: GoalCategory) => {
       return 'badge-ai';
     case 'OPERATIONS':
       return 'badge-operations';
+    default:
+      return 'badge-service'; // fallback
   }
 };
 
@@ -45,6 +49,8 @@ const getSizeClass = (size: GoalSize) => {
       return 'md:col-span-2 md:row-span-2';
     case 'xl':
       return 'md:col-span-2 md:row-span-3';
+    default:
+      return 'md:col-span-1 md:row-span-1'; // fallback
   }
 };
 
@@ -60,6 +66,8 @@ const getSizeBadge = (size: GoalSize) => {
       return { label: '높은 우선순위', color: 'bg-primary/80 text-primary-foreground' };
     case 'xl':
       return { label: '최고 우선순위', color: 'bg-primary text-primary-foreground' };
+    default:
+      return { label: '중간 우선순위', color: 'bg-accent text-accent-foreground' }; // fallback
   }
 };
 
