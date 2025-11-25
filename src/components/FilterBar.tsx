@@ -101,14 +101,18 @@ export const FilterBar = ({
         <div className="col-span-1 md:col-span-2 flex flex-wrap gap-2">
           {categories.map((category) => {
             const isSelected = selectedCategories.includes(category);
-            const customStyle = getCategoryButtonStyle(category, isSelected);
+            const color = categoryColors[category] || '#6b7280';
             
             return (
               <div key={category} className="relative group">
                 <Button
                   size="sm"
                   onClick={() => onCategoryToggle(category)}
-                  style={customStyle}
+                  style={!isSelected ? {
+                    backgroundColor: `${color}15`,
+                    color: color,
+                    borderColor: `${color}50`,
+                  } : undefined}
                   className={cn(
                     'transition-all pr-16 border-2',
                     isSelected 
