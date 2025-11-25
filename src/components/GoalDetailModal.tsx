@@ -340,7 +340,6 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete, categor
                           max={100}
                           step={5}
                         />
-                        <Progress value={subGoal.progress} className="mt-2 h-1.5" />
                       </div>
                     </div>
                     
