@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, Filter, Plus, X, ChevronDown, Palette } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface FilterBarProps {
@@ -40,7 +40,6 @@ export const FilterBar = ({
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [isOpen, setIsOpen] = useState(true);
   const [editingColor, setEditingColor] = useState<string | null>(null);
-  const colorInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const handleAddCategoryClick = () => {
     if (newCategoryName.trim()) {
@@ -50,12 +49,16 @@ export const FilterBar = ({
     }
   };
 
-  const getCategoryButtonStyle = (category: GoalCategory) => {
+  const getCategoryButtonStyle = (category: GoalCategory, isSelected: boolean) => {
+    if (isSelected) {
+      return {}; // Use default primary styles for selected
+    }
+    
     const color = categoryColors[category] || '#6b7280';
     return {
-      backgroundColor: `${color}20`,
+      backgroundColor: `${color}15`,
       color: color,
-      borderColor: `${color}40`,
+      borderColor: `${color}50`,
     };
   };
 
@@ -96,42 +99,35 @@ export const FilterBar = ({
         </Select>
         
         <div className="col-span-1 md:col-span-2 flex flex-wrap gap-2">
-          {categories.map((category) => (
-            <div key={category} className="relative group">
-              <Button
-                size="sm"
-                onClick={() => onCategoryToggle(category)}
-                style={!selectedCategories.includes(category) ? getCategoryButtonStyle(category) : undefined}
-                className={cn(
-                  'transition-all pr-16 border-2',
-                  selectedCategories.includes(category) 
-                    ? 'bg-primary text-primary-foreground border-primary hover:bg-primary/90' 
-                    : 'hover:opacity-80'
-                )}
-              >
-                {category}
-              </Button>
+          {categories.map((category) => {
+            const isSelected = selectedCategories.includes(category);
+            const customStyle = getCategoryButtonStyle(category, isSelected);
+            
+            return (
+              <div key={category} className="relative group">
+                <Button
+                  size="sm"
+                  onClick={() => onCategoryToggle(category)}
+                  style={customStyle}
+                  className={cn(
+                    'transition-all pr-16 border-2',
+                    isSelected 
+                      ? 'bg-primary text-primary-foreground border-primary hover:bg-primary/90' 
+                      : 'hover:opacity-80'
+                  )}
+                >
+                  {category}
+                </Button>
               <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    setEditingColor(category);
-                    setTimeout(() => colorInputRefs.current[category]?.click(), 0);
+                    setEditingColor(editingColor === category ? null : category);
                   }}
                   className="p-1 hover:bg-accent/20 rounded"
                   title="색상 변경"
                 >
                   <Palette className="w-3 h-3" />
-                  <input
-                    ref={(el) => (colorInputRefs.current[category] = el)}
-                    type="color"
-                    value={categoryColors[category] || '#6b7280'}
-                    onChange={(e) => {
-                      onCategoryColorChange(category, e.target.value);
-                      setEditingColor(null);
-                    }}
-                    className="absolute opacity-0 w-0 h-0"
-                  />
                 </button>
                 <button
                   onClick={(e) => {
@@ -144,8 +140,35 @@ export const FilterBar = ({
                   <X className="w-3 h-3 text-destructive" />
                 </button>
               </div>
+              
+              {editingColor === category && (
+                <div 
+                  className="absolute top-full mt-1 left-0 z-50 p-3 bg-card border border-border rounded-lg shadow-lg"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      type="color"
+                      value={categoryColors[category] || '#6b7280'}
+                      onChange={(e) => {
+                        onCategoryColorChange(category, e.target.value);
+                      }}
+                      className="w-12 h-8 rounded cursor-pointer"
+                    />
+                    <span className="text-xs text-muted-foreground">색상 선택</span>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => setEditingColor(null)}
+                    className="w-full"
+                  >
+                    완료
+                  </Button>
+                </div>
+              )}
             </div>
-          ))}
+          );
+          })}
           
           {isAddingCategory ? (
             <div className="flex gap-1 items-center">
