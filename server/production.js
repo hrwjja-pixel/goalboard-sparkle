@@ -287,8 +287,8 @@ app.delete('/api/goals/:id', async (req, res) => {
 const distPath = path.join(__dirname, '..', 'dist');
 app.use(express.static(distPath));
 
-// All other routes should serve the React app
-app.get('*', (req, res) => {
+// All other requests should serve the React app (SPA fallback)
+app.use((req, res) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 

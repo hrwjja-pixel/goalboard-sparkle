@@ -12,10 +12,8 @@ const getApiBaseUrl = () => {
     return '';  // 상대 경로 사용, Vite proxy가 /api를 localhost:3001로 전달
   }
 
-  // 프로덕션: 현재 브라우저 호스트의 3001 포트 사용
-  const protocol = window.location.protocol;
-  const hostname = window.location.hostname;
-  return `${protocol}//${hostname}:3001`;
+  // 프로덕션: 현재 브라우저와 같은 호스트/포트 사용 (상대 경로)
+  return '';
 };
 
 const API_BASE_URL = getApiBaseUrl();
