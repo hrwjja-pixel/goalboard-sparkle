@@ -122,8 +122,12 @@ export const GoalCard = ({ goal, onClick, categoryColors }: GoalCardProps) => {
         <GripVertical className="w-5 h-5 text-foreground/40" />
       </div>
       <div onClick={onClick}>
-      <div className="flex items-start justify-between mb-4 gap-2 flex-wrap">
-        <div className="flex gap-2">
+      <div className="mb-3">
+        <div className="flex items-center gap-1 text-sm text-foreground/70 mb-3">
+          <User className="w-4 h-4" />
+          <span className="font-medium">{goal.owner}</span>
+        </div>
+        <div className="flex gap-2 flex-wrap">
           <Badge 
             style={categoryStyle.badgeStyle}
             className={cn('text-xs font-semibold', categoryStyle.badgeClassName)}
@@ -133,10 +137,6 @@ export const GoalCard = ({ goal, onClick, categoryColors }: GoalCardProps) => {
           <Badge className={cn('text-xs font-semibold', sizeBadge.color)}>
             {sizeBadge.label}
           </Badge>
-        </div>
-        <div className="flex items-center gap-1 text-sm text-foreground/70">
-          <User className="w-4 h-4" />
-          <span className="font-medium">{goal.owner}</span>
         </div>
       </div>
 
