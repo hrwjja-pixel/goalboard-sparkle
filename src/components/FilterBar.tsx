@@ -47,13 +47,13 @@ export const FilterBar = ({
   const getCategoryButtonClass = (category: GoalCategory) => {
     switch (category) {
       case 'SERVICE':
-        return 'bg-[hsl(var(--service-light))] text-[hsl(var(--service))] hover:bg-[hsl(var(--service-light))]/80 border-[hsl(var(--service-border))]/20';
+        return 'bg-service-light text-service hover:bg-service-light/80 border-service-border/20';
       case 'AI':
-        return 'bg-[hsl(var(--ai-light))] text-[hsl(var(--ai))] hover:bg-[hsl(var(--ai-light))]/80 border-[hsl(var(--ai-border))]/20';
+        return 'bg-ai-light text-ai hover:bg-ai-light/80 border-ai-border/20';
       case 'OPERATIONS':
-        return 'bg-[hsl(var(--operations-light))] text-[hsl(var(--operations))] hover:bg-[hsl(var(--operations-light))]/80 border-[hsl(var(--operations-border))]/20';
+        return 'bg-operations-light text-operations hover:bg-operations-light/80 border-operations-border/20';
       default:
-        return 'bg-muted text-muted-foreground hover:bg-muted/80';
+        return 'bg-muted text-muted-foreground hover:bg-muted/80 border-border';
     }
   };
 
