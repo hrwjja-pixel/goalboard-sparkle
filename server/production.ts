@@ -2,16 +2,14 @@ import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { PrismaClient } from '@prisma/client';
 
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 
-// Get directory name in ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Get directory name - use process.cwd() for simplicity
+const projectRoot = process.cwd();
 
 app.use(cors());
 app.use(express.json());
@@ -284,11 +282,11 @@ app.delete('/api/goals/:id', async (req: Request, res: Response) => {
 });
 
 // Serve static files from the React app (dist folder)
-app.use(express.static(path.join(__dirname, '../dist')));
+app.use(express.static(path.join(projectRoot, 'dist')));
 
 // All other routes should serve the React app
 app.get('*', (req: Request, res: Response) => {
-  res.sendFile(path.join(__dirname, '../dist/index.html'));
+  res.sendFile(path.join(projectRoot, 'dist', 'index.html'));
 });
 
 app.listen(PORT, '0.0.0.0', () => {
