@@ -34,3 +34,10 @@ prisma/*.db-journal
 # Environment variables
 .env
 .env.local
+
+# Windows autostart files
+*-autostart.bat
+AUTO-START-GUIDE.md
+
+# Temporary scripts
+server/fix-*.ts
