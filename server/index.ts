@@ -77,7 +77,7 @@ app.get('/api/goals', async (req: Request, res: Response) => {
   try {
     const goals = await prisma.goal.findMany({
       include: {
-        category: true,
+        categories: true,
         subGoals: {
           orderBy: { createdAt: 'asc' },
         },
@@ -94,7 +94,7 @@ app.get('/api/goals', async (req: Request, res: Response) => {
       title: goal.title,
       description: goal.description,
       owner: goal.owner,
-      category: goal.category.name,
+      categories: goal.categories.map(cat => cat.name),
       progress: goal.progress,
       size: goal.size,
       startDate: goal.startDate,
@@ -114,23 +114,36 @@ app.get('/api/goals', async (req: Request, res: Response) => {
 
 app.post('/api/goals', async (req: Request, res: Response) => {
   try {
-    const { category, subGoals, notes, ...goalData } = req.body;
+    const { categories, subGoals, notes, ...goalData } = req.body;
 
-    // Find or create category
-    let categoryRecord = await prisma.category.findUnique({
-      where: { name: category },
-    });
-
-    if (!categoryRecord) {
-      categoryRecord = await prisma.category.create({
-        data: { name: category, color: '#6b7280' },
-      });
+    // Validate categories (1-5 required)
+    if (!categories || !Array.isArray(categories) || categories.length < 1 || categories.length > 5) {
+      return res.status(400).json({ error: 'Must provide 1-5 categories' });
     }
+
+    // Find or create categories
+    const categoryRecords = await Promise.all(
+      categories.map(async (categoryName: string) => {
+        let categoryRecord = await prisma.category.findUnique({
+          where: { name: categoryName },
+        });
+
+        if (!categoryRecord) {
+          categoryRecord = await prisma.category.create({
+            data: { name: categoryName, color: '#6b7280' },
+          });
+        }
+
+        return categoryRecord;
+      })
+    );
 
     const goal = await prisma.goal.create({
       data: {
         ...goalData,
-        categoryId: categoryRecord.id,
+        categories: {
+          connect: categoryRecords.map(cat => ({ id: cat.id })),
+        },
         subGoals: subGoals
           ? {
               create: subGoals.map((sg: any) => ({
@@ -156,7 +169,7 @@ app.post('/api/goals', async (req: Request, res: Response) => {
           : undefined,
       },
       include: {
-        category: true,
+        categories: true,
         subGoals: true,
         notes: true,
       },
@@ -164,7 +177,7 @@ app.post('/api/goals', async (req: Request, res: Response) => {
 
     res.json({
       ...goal,
-      category: goal.category.name,
+      categories: goal.categories.map(cat => cat.name),
     });
   } catch (error) {
     console.error('Error creating goal:', error);
@@ -201,18 +214,29 @@ app.put('/api/goals/reorder', async (req: Request, res: Response) => {
 app.put('/api/goals/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { category, subGoals, notes, ...goalData } = req.body;
+    const { categories, subGoals, notes, ...goalData } = req.body;
 
-    // Find or create category
-    let categoryRecord = await prisma.category.findUnique({
-      where: { name: category },
-    });
-
-    if (!categoryRecord) {
-      categoryRecord = await prisma.category.create({
-        data: { name: category, color: '#6b7280' },
-      });
+    // Validate categories (1-5 required)
+    if (!categories || !Array.isArray(categories) || categories.length < 1 || categories.length > 5) {
+      return res.status(400).json({ error: 'Must provide 1-5 categories' });
     }
+
+    // Find or create categories
+    const categoryRecords = await Promise.all(
+      categories.map(async (categoryName: string) => {
+        let categoryRecord = await prisma.category.findUnique({
+          where: { name: categoryName },
+        });
+
+        if (!categoryRecord) {
+          categoryRecord = await prisma.category.create({
+            data: { name: categoryName, color: '#6b7280' },
+          });
+        }
+
+        return categoryRecord;
+      })
+    );
 
     // Delete existing subgoals and notes, then recreate
     await prisma.subGoal.deleteMany({
@@ -227,7 +251,9 @@ app.put('/api/goals/:id', async (req: Request, res: Response) => {
       where: { id },
       data: {
         ...goalData,
-        categoryId: categoryRecord.id,
+        categories: {
+          set: categoryRecords.map(cat => ({ id: cat.id })),
+        },
         subGoals: subGoals
           ? {
               create: subGoals.map((sg: any) => ({
@@ -253,7 +279,7 @@ app.put('/api/goals/:id', async (req: Request, res: Response) => {
           : undefined,
       },
       include: {
-        category: true,
+        categories: true,
         subGoals: true,
         notes: true,
       },
@@ -261,7 +287,7 @@ app.put('/api/goals/:id', async (req: Request, res: Response) => {
 
     res.json({
       ...goal,
-      category: goal.category.name,
+      categories: goal.categories.map(cat => cat.name),
     });
   } catch (error) {
     console.error('Error updating goal:', error);

@@ -24,7 +24,7 @@ export interface Goal {
   title: string;
   description?: string;
   owner: string;
-  category: GoalCategory;
+  categories: GoalCategory[]; // 최소 1개, 최대 5개
   progress: number;
   size: GoalSize; // 카드 크기 = 우선순위
   startDate?: string;

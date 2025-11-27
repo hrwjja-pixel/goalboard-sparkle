@@ -23,7 +23,7 @@ export const AddGoalModal = ({ open, onClose, onAdd, categories }: AddGoalModalP
     title: '',
     description: '',
     owner: '',
-    category: 'SERVICE',
+    categories: ['SERVICE'],
     size: 'medium',
     progress: 0,
     startDate: '',
@@ -37,12 +37,17 @@ export const AddGoalModal = ({ open, onClose, onAdd, categories }: AddGoalModalP
       return;
     }
 
+    if (!newGoal.categories || newGoal.categories.length === 0) {
+      alert('최소 1개의 카테고리를 선택해야 합니다.');
+      return;
+    }
+
     const goal: Goal = {
       id: uuidv4(),
       title: newGoal.title,
       description: newGoal.description,
       owner: newGoal.owner,
-      category: newGoal.category as GoalCategory,
+      categories: newGoal.categories as GoalCategory[],
       size: newGoal.size as GoalSize,
       progress: newGoal.progress || 0,
       startDate: newGoal.startDate,
@@ -52,20 +57,20 @@ export const AddGoalModal = ({ open, onClose, onAdd, categories }: AddGoalModalP
     };
 
     onAdd(goal);
-    
+
     // Reset form
     setNewGoal({
       title: '',
       description: '',
       owner: '',
-      category: 'SERVICE',
+      categories: ['SERVICE'],
       size: 'medium',
       progress: 0,
       startDate: '',
       dueDate: '',
       statusNote: '',
     });
-    
+
     onClose();
   };
 
@@ -104,30 +109,53 @@ export const AddGoalModal = ({ open, onClose, onAdd, categories }: AddGoalModalP
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>담당자 *</Label>
-              <Input
-                value={newGoal.owner}
-                onChange={(e) => setNewGoal({ ...newGoal, owner: e.target.value })}
-                placeholder="담당자 이름"
-              />
-            </div>
+          <div>
+            <Label>담당자 *</Label>
+            <Input
+              value={newGoal.owner}
+              onChange={(e) => setNewGoal({ ...newGoal, owner: e.target.value })}
+              placeholder="담당자 이름"
+            />
+          </div>
 
-            <div>
-              <Label>카테고리</Label>
-              <select
-                value={newGoal.category}
-                onChange={(e) => setNewGoal({ ...newGoal, category: e.target.value as GoalCategory })}
-                className="w-full h-10 px-3 rounded-md border border-input bg-background"
-              >
-                {categories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
+          <div>
+            <Label>카테고리 * (최소 1개, 최대 5개)</Label>
+            <div className="mt-2 space-y-2 p-3 border rounded-md bg-background">
+              {categories.map((category) => {
+                const isSelected = newGoal.categories?.includes(category);
+                const canSelect = !isSelected && (newGoal.categories?.length || 0) < 5;
+                const canDeselect = isSelected && (newGoal.categories?.length || 0) > 1;
+
+                return (
+                  <label
+                    key={category}
+                    className={cn(
+                      "flex items-center gap-2 p-2 rounded cursor-pointer transition-colors",
+                      isSelected ? "bg-primary/10" : "hover:bg-muted",
+                      !canSelect && !isSelected && "opacity-50 cursor-not-allowed"
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      disabled={(!canSelect && !isSelected) || (!canDeselect && isSelected)}
+                      onChange={(e) => {
+                        const newCategories = e.target.checked
+                          ? [...(newGoal.categories || []), category]
+                          : (newGoal.categories || []).filter(c => c !== category);
+
+                        setNewGoal({ ...newGoal, categories: newCategories });
+                      }}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm font-medium">{category}</span>
+                  </label>
+                );
+              })}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              선택됨: {newGoal.categories?.length || 0} / 5
+            </p>
           </div>
 
           <div className="p-4 bg-muted rounded-lg">

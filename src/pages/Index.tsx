@@ -103,7 +103,7 @@ const Index = () => {
   const filteredGoals = useMemo(() => {
     return goals.filter((goal) => {
       // Category filter
-      if (!selectedCategories.includes(goal.category)) {
+      if (!goal.categories || !goal.categories.some(cat => selectedCategories.includes(cat))) {
         return false;
       }
 
@@ -230,7 +230,9 @@ const Index = () => {
 
         // Update goals that use this category
         setGoals((prev) => prev.map((g) =>
-          g.category === oldName ? { ...g, category: newName } : g
+          g.categories && g.categories.includes(oldName)
+            ? { ...g, categories: g.categories.map(c => c === oldName ? newName : c) }
+            : g
         ));
       }
     } catch (error) {
@@ -241,7 +243,7 @@ const Index = () => {
 
   const handleDeleteCategory = async (categoryToDelete: string) => {
     // Don't allow deletion if goals exist with this category
-    const hasGoalsWithCategory = goals.some((g) => g.category === categoryToDelete);
+    const hasGoalsWithCategory = goals.some((g) => g.categories && g.categories.includes(categoryToDelete));
     if (hasGoalsWithCategory) {
       alert('이 카테고리를 사용하는 목표가 있어 삭제할 수 없습니다.');
       return;

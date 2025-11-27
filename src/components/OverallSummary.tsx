@@ -24,11 +24,16 @@ export const OverallSummary = ({ goals, filteredGoals, onAddGoal, categoryColors
 
   // Calculate category statistics
   const categoryStats = goals.reduce((acc, goal) => {
-    if (!acc[goal.category]) {
-      acc[goal.category] = { count: 0, totalProgress: 0 };
+    // Handle multiple categories per goal
+    if (goal.categories && goal.categories.length > 0) {
+      goal.categories.forEach((category) => {
+        if (!acc[category]) {
+          acc[category] = { count: 0, totalProgress: 0 };
+        }
+        acc[category].count++;
+        acc[category].totalProgress += goal.progress;
+      });
     }
-    acc[goal.category].count++;
-    acc[goal.category].totalProgress += goal.progress;
     return acc;
   }, {} as Record<string, { count: number; totalProgress: number }>);
 

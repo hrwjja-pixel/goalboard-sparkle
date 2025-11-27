@@ -3,6 +3,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, User, TrendingUp, GripVertical, StickyNote } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { LinkifiedText } from '@/components/LinkifiedText';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -99,7 +100,9 @@ export const GoalCard = ({ goal, onClick, categoryColors }: GoalCardProps) => {
   };
 
   const sizeBadge = getSizeBadge(goal.size);
-  const categoryStyle = getCategoryStyle(goal.category, categoryColors);
+  // Use first category for card styling
+  const primaryCategory = goal.categories && goal.categories.length > 0 ? goal.categories[0] : 'SERVICE';
+  const categoryStyle = getCategoryStyle(primaryCategory as GoalCategory, categoryColors);
 
   return (
     <div
@@ -128,12 +131,18 @@ export const GoalCard = ({ goal, onClick, categoryColors }: GoalCardProps) => {
           <span className="font-medium">{goal.owner}</span>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Badge 
-            style={categoryStyle.badgeStyle}
-            className={cn('text-xs font-semibold', categoryStyle.badgeClassName)}
-          >
-            {goal.category}
-          </Badge>
+          {goal.categories && goal.categories.map((category, index) => {
+            const catStyle = getCategoryStyle(category as GoalCategory, categoryColors);
+            return (
+              <Badge
+                key={index}
+                style={catStyle.badgeStyle}
+                className={cn('text-xs font-semibold', catStyle.badgeClassName)}
+              >
+                {category}
+              </Badge>
+            );
+          })}
           <Badge className={cn('text-xs font-semibold', sizeBadge.color)}>
             {sizeBadge.label}
           </Badge>
@@ -141,9 +150,11 @@ export const GoalCard = ({ goal, onClick, categoryColors }: GoalCardProps) => {
       </div>
 
       <h3 className="text-xl font-bold mb-2 line-clamp-2">{goal.title}</h3>
-      
+
       {goal.description && (
-        <p className="text-sm text-foreground/70 mb-4 line-clamp-2">{goal.description}</p>
+        <p className="text-sm text-foreground/70 mb-4 line-clamp-2">
+          <LinkifiedText text={goal.description} />
+        </p>
       )}
 
       <div className="space-y-3 mb-4">
@@ -170,7 +181,9 @@ export const GoalCard = ({ goal, onClick, categoryColors }: GoalCardProps) => {
         {goal.statusNote && (
           <div className="text-sm">
             <span className="font-medium">상태: </span>
-            <span className="text-foreground/70">{goal.statusNote}</span>
+            <span className="text-foreground/70">
+              <LinkifiedText text={goal.statusNote} />
+            </span>
           </div>
         )}
       </div>
@@ -187,7 +200,9 @@ export const GoalCard = ({ goal, onClick, categoryColors }: GoalCardProps) => {
               .slice(0, 2)
               .map((note) => (
                 <div key={note.id} className="p-2 bg-primary/10 rounded-md border border-primary/20">
-                  <p className="text-xs text-foreground/80 line-clamp-2">{note.content}</p>
+                  <p className="text-xs text-foreground/80 line-clamp-2">
+                    <LinkifiedText text={note.content} />
+                  </p>
                   <p className="text-[10px] text-foreground/50 mt-1">{formatDate(note.createdAt)}</p>
                 </div>
               ))}

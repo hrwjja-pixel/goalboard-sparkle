@@ -6,9 +6,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Slider } from '@/components/ui/slider';
-import { Trash2, Plus, Maximize2, StickyNote, Pin } from 'lucide-react';
+import { Trash2, Plus, Maximize2, StickyNote, Pin, ChevronUp, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { LinkifiedText } from '@/components/LinkifiedText';
 import { v4 as uuidv4 } from 'uuid';
 
 interface GoalDetailModalProps {
@@ -59,8 +60,26 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete, categor
     const newProgress = updatedSubGoals && updatedSubGoals.length > 0
       ? Math.round(updatedSubGoals.reduce((sum, sg) => sum + sg.progress, 0) / updatedSubGoals.length)
       : 0;
-    
+
     setEditedGoal({ ...editedGoal, subGoals: updatedSubGoals, progress: newProgress });
+  };
+
+  const handleMoveSubGoalUp = (index: number) => {
+    if (index === 0 || !editedGoal.subGoals) return;
+
+    const updatedSubGoals = [...editedGoal.subGoals];
+    [updatedSubGoals[index - 1], updatedSubGoals[index]] = [updatedSubGoals[index], updatedSubGoals[index - 1]];
+
+    setEditedGoal({ ...editedGoal, subGoals: updatedSubGoals });
+  };
+
+  const handleMoveSubGoalDown = (index: number) => {
+    if (!editedGoal.subGoals || index === editedGoal.subGoals.length - 1) return;
+
+    const updatedSubGoals = [...editedGoal.subGoals];
+    [updatedSubGoals[index], updatedSubGoals[index + 1]] = [updatedSubGoals[index + 1], updatedSubGoals[index]];
+
+    setEditedGoal({ ...editedGoal, subGoals: updatedSubGoals });
   };
 
   const handleAddNote = (content: string, isPinned: boolean) => {
@@ -145,19 +164,44 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete, categor
               />
             </div>
 
-            <div>
-              <Label>카테고리</Label>
-              <select
-                value={editedGoal.category}
-                onChange={(e) => setEditedGoal({ ...editedGoal, category: e.target.value as GoalCategory })}
-                className="w-full h-10 px-3 rounded-md border border-input bg-background"
-              >
-                {categories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
+            <div className="col-span-2">
+              <Label>카테고리 (최소 1개, 최대 5개)</Label>
+              <div className="mt-2 space-y-2 p-3 border rounded-md bg-background">
+                {categories.map((category) => {
+                  const isSelected = editedGoal.categories?.includes(category);
+                  const canSelect = !isSelected && (editedGoal.categories?.length || 0) < 5;
+                  const canDeselect = isSelected && (editedGoal.categories?.length || 0) > 1;
+
+                  return (
+                    <label
+                      key={category}
+                      className={cn(
+                        "flex items-center gap-2 p-2 rounded cursor-pointer transition-colors",
+                        isSelected ? "bg-primary/10" : "hover:bg-muted",
+                        !canSelect && !isSelected && "opacity-50 cursor-not-allowed"
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        disabled={(!canSelect && !isSelected) || (!canDeselect && isSelected)}
+                        onChange={(e) => {
+                          const newCategories = e.target.checked
+                            ? [...(editedGoal.categories || []), category]
+                            : (editedGoal.categories || []).filter(c => c !== category);
+
+                          setEditedGoal({ ...editedGoal, categories: newCategories });
+                        }}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm font-medium">{category}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                선택됨: {editedGoal.categories?.length || 0} / 5
+              </p>
             </div>
           </div>
 
@@ -254,7 +298,9 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete, categor
                         )}
                       >
                         <div className="flex justify-between items-start gap-2">
-                          <p className="text-sm text-foreground flex-1">{note.content}</p>
+                          <p className="text-sm text-foreground flex-1">
+                            <LinkifiedText text={note.content} />
+                          </p>
                           <div className="flex gap-1">
                             <Button
                               onClick={() => handleTogglePin(note.id)}
@@ -299,8 +345,33 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete, categor
 
             {hasSubGoals && (
               <div className="space-y-4">
-                {editedGoal.subGoals!.map((subGoal) => (
+                {editedGoal.subGoals!.map((subGoal, index) => (
                   <div key={subGoal.id} className="p-4 bg-muted rounded-lg space-y-3">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs text-muted-foreground">하위 목표 {index + 1}</span>
+                      <div className="flex gap-1">
+                        <Button
+                          onClick={() => handleMoveSubGoalUp(index)}
+                          disabled={index === 0}
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          title="위로 이동"
+                        >
+                          <ChevronUp className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          onClick={() => handleMoveSubGoalDown(index)}
+                          disabled={index === editedGoal.subGoals!.length - 1}
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          title="아래로 이동"
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="col-span-2">
                         <Label className="text-xs">제목</Label>

@@ -20,24 +20,22 @@ model Category {
 }
 
 model Goal {
-  id          String    @id @default(uuid())
+  id          String     @id @default(uuid())
   title       String
   description String?
   owner       String
-  categoryId  String
-  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  progress    Int       @default(0)
-  size        String    @default("medium")
+  categories  Category[]
+  progress    Int        @default(0)
+  size        String     @default("medium")
   startDate   String?
   dueDate     String?
   statusNote  String?
-  order       Int       @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  order       Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
   subGoals    SubGoal[]
   notes       Note[]
 
-  @@index([categoryId])
   @@index([owner])
 }
 
