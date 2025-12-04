@@ -35,9 +35,8 @@ prisma/*.db-journal
 .env
 .env.local
 
-# Windows autostart files
-*-autostart.bat
-AUTO-START-GUIDE.md
+# Windows Service files
+daemon/
 
 # Temporary scripts
 server/fix-*.ts
