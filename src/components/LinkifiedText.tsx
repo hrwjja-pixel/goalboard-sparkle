@@ -9,7 +9,7 @@ interface LinkifiedTextProps {
 }
 
 /**
- * 텍스트 내의 URL을 클릭 가능한 링크로 변환하는 컴포넌트
+ * 텍스트 내의 URL을 클릭 가능한 링크로 변환하고 줄바꿈을 처리하는 컴포넌트
  */
 export const LinkifiedText: React.FC<LinkifiedTextProps> = ({ text, className }) => {
   if (!text) return null;
@@ -34,8 +34,18 @@ export const LinkifiedText: React.FC<LinkifiedTextProps> = ({ text, className })
             </a>
           );
         }
-        // 일반 텍스트
-        return <React.Fragment key={index}>{part}</React.Fragment>;
+        // 일반 텍스트 - 줄바꿈 처리
+        const lines = part.split('\n');
+        return (
+          <React.Fragment key={index}>
+            {lines.map((line, lineIndex) => (
+              <React.Fragment key={`${index}-${lineIndex}`}>
+                {line}
+                {lineIndex < lines.length - 1 && <br />}
+              </React.Fragment>
+            ))}
+          </React.Fragment>
+        );
       })}
     </>
   );
