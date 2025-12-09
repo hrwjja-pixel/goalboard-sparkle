@@ -61,17 +61,17 @@ const getSizeClass = (size: GoalSize) => {
 const getSizeBadge = (size: GoalSize) => {
   switch (size) {
     case 'xs':
-      return { label: '최저 우선순위', color: 'bg-muted/50 text-muted-foreground' };
+      return { label: '최저 중요도', color: 'bg-muted/50 text-muted-foreground' };
     case 'small':
-      return { label: '낮은 우선순위', color: 'bg-muted text-muted-foreground' };
+      return { label: '낮은 중요도', color: 'bg-muted text-muted-foreground' };
     case 'medium':
-      return { label: '중간 우선순위', color: 'bg-accent text-accent-foreground' };
+      return { label: '중간 중요도', color: 'bg-accent text-accent-foreground' };
     case 'large':
-      return { label: '높은 우선순위', color: 'bg-primary/80 text-primary-foreground' };
+      return { label: '높은 중요도', color: 'bg-primary/80 text-primary-foreground' };
     case 'xl':
-      return { label: '최고 우선순위', color: 'bg-primary text-primary-foreground' };
+      return { label: '최고 중요도', color: 'bg-primary text-primary-foreground' };
     default:
-      return { label: '중간 우선순위', color: 'bg-accent text-accent-foreground' }; // fallback
+      return { label: '중간 중요도', color: 'bg-accent text-accent-foreground' }; // fallback
   }
 };
 
@@ -203,7 +203,11 @@ export const GoalCard = ({ goal, onClick, categoryColors }: GoalCardProps) => {
                   <p className="text-xs text-foreground/80 line-clamp-2">
                     <LinkifiedText text={note.content} />
                   </p>
-                  <p className="text-[10px] text-foreground/50 mt-1">{formatDate(note.createdAt)}</p>
+                  <p className="text-[10px] text-foreground/50 mt-1">
+                    {note.updatedAt
+                      ? `수정: ${formatDate(note.updatedAt)}`
+                      : formatDate(note.createdAt)}
+                  </p>
                 </div>
               ))}
           </div>

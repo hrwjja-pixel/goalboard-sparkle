@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Slider } from '@/components/ui/slider';
-import { Trash2, Plus, Maximize2, StickyNote, Pin, ChevronUp, ChevronDown } from 'lucide-react';
+import { Trash2, Plus, Maximize2, StickyNote, Pin, ChevronUp, ChevronDown, Pencil, Save, X } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { LinkifiedText } from '@/components/LinkifiedText';
@@ -108,6 +108,13 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete, categor
     setEditedGoal({ ...editedGoal, notes: updatedNotes });
   };
 
+  const handleEditNote = (noteId: string, newContent: string) => {
+    const updatedNotes = editedGoal.notes?.map((note) =>
+      note.id === noteId ? { ...note, content: newContent, updatedAt: new Date().toISOString() } : note
+    );
+    setEditedGoal({ ...editedGoal, notes: updatedNotes });
+  };
+
   const handleSave = () => {
     onSave(editedGoal);
     onClose();
@@ -123,11 +130,11 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete, categor
   const hasSubGoals = editedGoal.subGoals && editedGoal.subGoals.length > 0;
 
   const sizeOptions: { value: GoalSize; label: string; description: string }[] = [
-    { value: 'xs', label: '최저 우선순위', description: '1x1 카드' },
-    { value: 'small', label: '낮은 우선순위', description: '1x1 카드' },
-    { value: 'medium', label: '중간 우선순위', description: '1x2 카드 (높이 2배)' },
-    { value: 'large', label: '높은 우선순위', description: '2x2 카드 (가로/세로 2배)' },
-    { value: 'xl', label: '최고 우선순위', description: '2x3 카드 (매우 큰 크기)' },
+    { value: 'xs', label: '최저 중요도', description: '1x1 카드' },
+    { value: 'small', label: '낮은 중요도', description: '1x1 카드' },
+    { value: 'medium', label: '중간 중요도', description: '1x2 카드 (높이 2배)' },
+    { value: 'large', label: '높은 중요도', description: '2x2 카드 (가로/세로 2배)' },
+    { value: 'xl', label: '최고 중요도', description: '2x3 카드 (매우 큰 크기)' },
   ];
 
   return (
@@ -208,7 +215,7 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete, categor
           <div className="p-4 bg-muted rounded-lg">
             <div className="flex items-center gap-2 mb-3">
               <Maximize2 className="w-5 h-5 text-primary" />
-              <Label className="text-base">카드 크기 (우선순위)</Label>
+              <Label className="text-base">카드 크기 (중요도)</Label>
             </div>
             <div className="grid grid-cols-1 gap-2">
               {sizeOptions.map((option) => (
@@ -288,42 +295,13 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete, categor
                   {editedGoal.notes
                     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                     .map((note) => (
-                      <div
+                      <NoteCard
                         key={note.id}
-                        className={cn(
-                          'p-3 rounded-lg border-2 transition-all',
-                          note.isPinned
-                            ? 'bg-primary/10 border-primary/30'
-                            : 'bg-muted border-border'
-                        )}
-                      >
-                        <div className="flex justify-between items-start gap-2">
-                          <p className="text-sm text-foreground flex-1">
-                            <LinkifiedText text={note.content} />
-                          </p>
-                          <div className="flex gap-1">
-                            <Button
-                              onClick={() => handleTogglePin(note.id)}
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0"
-                            >
-                              <Pin className={cn("w-4 h-4", note.isPinned && "fill-primary text-primary")} />
-                            </Button>
-                            <Button
-                              onClick={() => handleDeleteNote(note.id)}
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0 text-destructive"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          {new Date(note.createdAt).toLocaleString('ko-KR')}
-                        </p>
-                      </div>
+                        note={note}
+                        onTogglePin={handleTogglePin}
+                        onDelete={handleDeleteNote}
+                        onEdit={handleEditNote}
+                      />
                     ))}
                 </div>
               ) : (
@@ -370,10 +348,19 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete, categor
                         >
                           <ChevronDown className="w-4 h-4" />
                         </Button>
+                        <Button
+                          onClick={() => handleDeleteSubGoal(subGoal.id)}
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                          title="삭제"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="col-span-2">
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="col-span-3">
                         <Label className="text-xs">제목</Label>
                         <Input
                           value={subGoal.title}
@@ -381,7 +368,7 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete, categor
                           className="mt-1"
                         />
                       </div>
-                      
+
                       <div>
                         <Label className="text-xs">담당자</Label>
                         <Input
@@ -390,8 +377,8 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete, categor
                           className="mt-1"
                         />
                       </div>
-                      
-                      <div>
+
+                      <div className="col-span-2">
                         <Label className="text-xs">상태 메모</Label>
                         <Input
                           value={subGoal.statusNote || ''}
@@ -399,8 +386,8 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete, categor
                           className="mt-1"
                         />
                       </div>
-                      
-                      <div className="col-span-2">
+
+                      <div className="col-span-3">
                         <div className="flex justify-between items-center mb-2">
                           <Label className="text-xs">진행률</Label>
                           <span className="text-sm font-bold">{subGoal.progress}%</span>
@@ -413,16 +400,6 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete, categor
                         />
                       </div>
                     </div>
-                    
-                    <Button
-                      onClick={() => handleDeleteSubGoal(subGoal.id)}
-                      variant="destructive"
-                      size="sm"
-                      className="w-full"
-                    >
-                      <Trash2 className="w-4 h-4 mr-1" />
-                      삭제
-                    </Button>
                   </div>
                 ))}
               </div>
@@ -456,6 +433,116 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete, categor
         </div>
       </DialogContent>
     </Dialog>
+  );
+};
+
+const NoteCard = ({
+  note,
+  onTogglePin,
+  onDelete,
+  onEdit
+}: {
+  note: Note;
+  onTogglePin: (noteId: string) => void;
+  onDelete: (noteId: string) => void;
+  onEdit: (noteId: string, newContent: string) => void;
+}) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(note.content);
+
+  const handleSave = () => {
+    if (!editContent.trim()) return;
+    onEdit(note.id, editContent);
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setEditContent(note.content);
+    setIsEditing(false);
+  };
+
+  return (
+    <div
+      className={cn(
+        'p-3 rounded-lg border-2 transition-all',
+        note.isPinned
+          ? 'bg-primary/10 border-primary/30'
+          : 'bg-muted border-border'
+      )}
+    >
+      {isEditing ? (
+        <div className="space-y-2">
+          <Textarea
+            value={editContent}
+            onChange={(e) => setEditContent(e.target.value)}
+            rows={3}
+            className="w-full"
+          />
+          <div className="flex justify-end gap-1">
+            <Button
+              onClick={handleCancel}
+              variant="ghost"
+              size="sm"
+              className="h-7"
+            >
+              <X className="w-4 h-4 mr-1" />
+              취소
+            </Button>
+            <Button
+              onClick={handleSave}
+              variant="default"
+              size="sm"
+              className="h-7"
+            >
+              <Save className="w-4 h-4 mr-1" />
+              저장
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="flex justify-between items-start gap-2">
+            <p className="text-sm text-foreground flex-1">
+              <LinkifiedText text={note.content} />
+            </p>
+            <div className="flex gap-1">
+              <Button
+                onClick={() => setIsEditing(true)}
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0"
+                title="수정"
+              >
+                <Pencil className="w-4 h-4" />
+              </Button>
+              <Button
+                onClick={() => onTogglePin(note.id)}
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0"
+                title={note.isPinned ? "고정 해제" : "고정"}
+              >
+                <Pin className={cn("w-4 h-4", note.isPinned && "fill-primary text-primary")} />
+              </Button>
+              <Button
+                onClick={() => onDelete(note.id)}
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 text-destructive"
+                title="삭제"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            {note.updatedAt
+              ? `수정: ${new Date(note.updatedAt).toLocaleString('ko-KR')}`
+              : new Date(note.createdAt).toLocaleString('ko-KR')}
+          </p>
+        </>
+      )}
+    </div>
   );
 };
 

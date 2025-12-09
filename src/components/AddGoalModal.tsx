@@ -75,11 +75,11 @@ export const AddGoalModal = ({ open, onClose, onAdd, categories }: AddGoalModalP
   };
 
   const sizeOptions: { value: GoalSize; label: string; description: string }[] = [
-    { value: 'xs', label: '최저 우선순위', description: '1x1 카드' },
-    { value: 'small', label: '낮은 우선순위', description: '1x1 카드' },
-    { value: 'medium', label: '중간 우선순위', description: '1x2 카드 (높이 2배)' },
-    { value: 'large', label: '높은 우선순위', description: '2x2 카드 (가로/세로 2배)' },
-    { value: 'xl', label: '최고 우선순위', description: '2x3 카드 (매우 큰 크기)' },
+    { value: 'xs', label: '최저 중요도', description: '1x1 카드' },
+    { value: 'small', label: '낮은 중요도', description: '1x1 카드' },
+    { value: 'medium', label: '중간 중요도', description: '1x2 카드 (높이 2배)' },
+    { value: 'large', label: '높은 중요도', description: '2x2 카드 (가로/세로 2배)' },
+    { value: 'xl', label: '최고 중요도', description: '2x3 카드 (매우 큰 크기)' },
   ];
 
   return (
@@ -161,7 +161,7 @@ export const AddGoalModal = ({ open, onClose, onAdd, categories }: AddGoalModalP
           <div className="p-4 bg-muted rounded-lg">
             <div className="flex items-center gap-2 mb-3">
               <Maximize2 className="w-5 h-5 text-primary" />
-              <Label className="text-base">카드 크기 (우선순위)</Label>
+              <Label className="text-base">카드 크기 (중요도)</Label>
             </div>
             <div className="grid grid-cols-1 gap-2">
               {sizeOptions.map((option) => (

@@ -164,6 +164,8 @@ app.post('/api/goals', async (req: Request, res: Response) => {
                 id: note.id,
                 content: note.content,
                 isPinned: note.isPinned,
+                createdAt: note.createdAt,
+                updatedAt: note.updatedAt,
               })),
             }
           : undefined,
@@ -274,6 +276,8 @@ app.put('/api/goals/:id', async (req: Request, res: Response) => {
                 id: note.id,
                 content: note.content,
                 isPinned: note.isPinned,
+                createdAt: note.createdAt,
+                updatedAt: note.updatedAt,
               })),
             }
           : undefined,

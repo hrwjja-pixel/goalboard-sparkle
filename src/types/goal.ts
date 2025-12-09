@@ -5,6 +5,7 @@ export interface Note {
   id: string;
   content: string;
   createdAt: string;
+  updatedAt?: string;
   isPinned: boolean;
 }
 
@@ -26,7 +27,7 @@ export interface Goal {
   owner: string;
   categories: GoalCategory[]; // 최소 1개, 최대 5개
   progress: number;
-  size: GoalSize; // 카드 크기 = 우선순위
+  size: GoalSize; // 카드 크기 = 중요도
   startDate?: string;
   dueDate?: string;
   statusNote?: string;
