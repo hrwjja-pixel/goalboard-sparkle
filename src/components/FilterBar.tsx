@@ -73,13 +73,17 @@ export const FilterBar = ({
 
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="w-40 h-9 justify-between">
-              <span className="text-sm">
+            <Button
+              variant="outline"
+              role="combobox"
+              className="w-40 h-9 justify-between font-normal bg-background hover:bg-accent hover:text-accent-foreground"
+            >
+              <span className="text-sm truncate">
                 {selectedOwners.length === 0
                   ? "담당자 선택"
                   : `${selectedOwners.length}명 선택`}
               </span>
-              <ChevronDown className="w-4 h-4 opacity-50" />
+              <ChevronDown className="w-4 h-4 ml-2 opacity-50 shrink-0" />
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-64 p-3">
@@ -113,17 +117,23 @@ export const FilterBar = ({
                     전체 해제
                   </Button>
                 </div>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
+                <div className="space-y-1 max-h-64 overflow-y-auto">
                   {owners.map((owner) => (
-                    <div key={owner} className="flex items-center space-x-2">
+                    <div
+                      key={owner}
+                      className="flex items-center space-x-3 px-2 py-1.5 rounded-md hover:bg-accent/20 cursor-pointer transition-colors"
+                      onClick={() => onOwnerToggle(owner)}
+                    >
                       <Checkbox
                         id={`owner-${owner}`}
                         checked={selectedOwners.includes(owner)}
                         onCheckedChange={() => onOwnerToggle(owner)}
+                        className="!rounded-none"
+                        onClick={(e) => e.stopPropagation()}
                       />
                       <label
                         htmlFor={`owner-${owner}`}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
+                        className="text-sm leading-none cursor-pointer flex-1 select-none"
                       >
                         {owner}
                       </label>
