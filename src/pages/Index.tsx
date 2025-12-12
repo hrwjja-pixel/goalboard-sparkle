@@ -50,7 +50,7 @@ const Index = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'normal' | 'compact'>('normal');
+  const [viewMode, setViewMode] = useState<'normal' | 'compact'>('compact');
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -323,38 +323,6 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* User Profile Header */}
-      <header className="border-b bg-background sticky top-0 z-50">
-        <div className="flex items-center justify-between px-6 py-3">
-          <h1 className="text-2xl font-bold">Goalboard</h1>
-          {user && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                  <Avatar>
-                    <AvatarImage src={user?.picture} alt={user?.name} />
-                    <AvatarFallback>{user?.name?.charAt(0).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user?.name}</p>
-                    <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout} className="text-red-600 cursor-pointer">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>로그아웃</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </div>
-      </header>
-
       <div className="w-full px-6 py-6">
         {viewMode === 'normal' ? (
           <OverallSummary

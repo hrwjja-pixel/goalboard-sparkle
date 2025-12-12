@@ -85,11 +85,11 @@ export const CompactOverallSummary = ({ goals, onAddGoal, onToggleView, category
         </div>
 
         <div className="flex items-center gap-2">
-          <Button onClick={onToggleView} size="sm" variant="outline">
+          <Button onClick={onToggleView} size="default" variant="default" className="shadow-lg bg-primary text-primary-foreground hover:bg-primary/90">
             <Maximize2 className="w-4 h-4 mr-2" />
             상세보기
           </Button>
-          <Button onClick={onAddGoal} size="sm" className="shadow-md">
+          <Button onClick={onAddGoal} size="sm" variant="outline" className="shadow-md">
             <Plus className="w-4 h-4 mr-2" />
             새 목표
           </Button>
