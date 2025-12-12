@@ -2,14 +2,38 @@ import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import path from 'path';
+import session from 'express-session';
+import passport from 'passport';
 import { PrismaClient } from '@prisma/client';
+import { setupPassport } from './auth/passport';
+import authRoutes from './routes/auth';
+import { optionalAuth, AuthRequest } from './middleware/auth';
+import { attachAuditLog } from './middleware/audit';
 
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 
+// Setup Passport
+setupPassport();
+
 app.use(cors());
 app.use(express.json());
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || 'default-secret',
+    resave: false,
+    saveUninitialized: false,
+  })
+);
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Auth routes
+app.use('/api/auth', authRoutes);
+
+// Apply optional auth and audit middleware to all API routes
+app.use('/api', optionalAuth, attachAuditLog);
 
 // Health check
 app.get('/api/health', (req: Request, res: Response) => {

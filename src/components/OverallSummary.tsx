@@ -1,6 +1,6 @@
 import { Goal } from '@/types/goal';
 import { Progress } from '@/components/ui/progress';
-import { TrendingUp, Plus } from 'lucide-react';
+import { TrendingUp, Plus, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
@@ -9,9 +9,10 @@ interface OverallSummaryProps {
   filteredGoals: Goal[];
   onAddGoal: () => void;
   categoryColors?: Record<string, string>;
+  onToggleView?: () => void;
 }
 
-export const OverallSummary = ({ goals, filteredGoals, onAddGoal, categoryColors }: OverallSummaryProps) => {
+export const OverallSummary = ({ goals, filteredGoals, onAddGoal, categoryColors, onToggleView }: OverallSummaryProps) => {
   const overallAverage = Math.round(
     goals.reduce((sum, goal) => sum + goal.progress, 0) / goals.length
   );
@@ -49,6 +50,12 @@ export const OverallSummary = ({ goals, filteredGoals, onAddGoal, categoryColors
             <TrendingUp className="w-4 h-4 text-primary" />
             <span className="text-sm font-semibold text-primary">진행 중</span>
           </div>
+          {onToggleView && (
+            <Button onClick={onToggleView} size="default" variant="outline">
+              <Minimize2 className="w-4 h-4 mr-2" />
+              요약보기
+            </Button>
+          )}
           <Button onClick={onAddGoal} size="default" className="shadow-lg">
             <Plus className="w-4 h-4 mr-2" />
             새 목표 추가

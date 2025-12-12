@@ -2,12 +2,24 @@ import { useState, useEffect, useMemo } from 'react';
 import { Goal, GoalCategory } from '@/types/goal';
 import { initialGoals } from '@/data/initialGoals';
 import { OverallSummary } from '@/components/OverallSummary';
+import { CompactOverallSummary } from '@/components/CompactOverallSummary';
 import { FilterBar } from '@/components/FilterBar';
 import { GoalCard } from '@/components/GoalCard';
+import { CompactGoalCard } from '@/components/CompactGoalCard';
 import { GoalDetailModal } from '@/components/GoalDetailModal';
 import { AddGoalModal } from '@/components/AddGoalModal';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, LogOut } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DndContext,
   closestCenter,
@@ -26,6 +38,7 @@ import {
 import { api } from '@/lib/api';
 
 const Index = () => {
+  const { user, logout } = useAuth();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [categories, setCategories] = useState<GoalCategory[]>([]);
   const [categoryColors, setCategoryColors] = useState<Record<string, string>>({});
@@ -37,6 +50,7 @@ const Index = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'normal' | 'compact'>('normal');
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -309,29 +323,73 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="w-full px-6 py-6">
-        <OverallSummary
-          goals={goals}
-          filteredGoals={filteredGoals}
-          onAddGoal={() => setIsAddModalOpen(true)}
-          categoryColors={categoryColors}
-        />
+      {/* User Profile Header */}
+      <header className="border-b bg-background sticky top-0 z-50">
+        <div className="flex items-center justify-between px-6 py-3">
+          <h1 className="text-2xl font-bold">Goalboard</h1>
+          {user && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                  <Avatar>
+                    <AvatarImage src={user?.picture} alt={user?.name} />
+                    <AvatarFallback>{user?.name?.charAt(0).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">{user?.name}</p>
+                    <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={logout} className="text-red-600 cursor-pointer">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>로그아웃</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      </header>
 
-        <FilterBar
-          searchText={searchText}
-          onSearchChange={setSearchText}
-          selectedOwner={selectedOwner}
-          onOwnerChange={setSelectedOwner}
-          selectedCategories={selectedCategories}
-          onCategoryToggle={handleCategoryToggle}
-          owners={owners}
-          categories={categories}
-          categoryColors={categoryColors}
-          onAddCategory={handleAddCategory}
-          onDeleteCategory={handleDeleteCategory}
-          onCategoryColorChange={handleCategoryColorChange}
-          onCategoryNameChange={handleCategoryNameChange}
-        />
+      <div className="w-full px-6 py-6">
+        {viewMode === 'normal' ? (
+          <OverallSummary
+            goals={goals}
+            filteredGoals={filteredGoals}
+            onAddGoal={() => setIsAddModalOpen(true)}
+            categoryColors={categoryColors}
+            onToggleView={() => setViewMode('compact')}
+          />
+        ) : (
+          <CompactOverallSummary
+            goals={goals}
+            onAddGoal={() => setIsAddModalOpen(true)}
+            onToggleView={() => setViewMode('normal')}
+            categoryColors={categoryColors}
+          />
+        )}
+
+        {viewMode === 'normal' && (
+          <FilterBar
+            searchText={searchText}
+            onSearchChange={setSearchText}
+            selectedOwner={selectedOwner}
+            onOwnerChange={setSelectedOwner}
+            selectedCategories={selectedCategories}
+            onCategoryToggle={handleCategoryToggle}
+            owners={owners}
+            categories={categories}
+            categoryColors={categoryColors}
+            onAddCategory={handleAddCategory}
+            onDeleteCategory={handleDeleteCategory}
+            onCategoryColorChange={handleCategoryColorChange}
+            onCategoryNameChange={handleCategoryNameChange}
+          />
+        )}
 
         <DndContext
           sensors={sensors}
@@ -342,9 +400,16 @@ const Index = () => {
             items={filteredGoals.map((goal) => goal.id)}
             strategy={rectSortingStrategy}
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 auto-rows-auto">
+            <div className={viewMode === 'compact'
+              ? "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 auto-rows-auto"
+              : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 auto-rows-auto"
+            }>
               {filteredGoals.map((goal) => (
-                <GoalCard key={goal.id} goal={goal} onClick={() => handleCardClick(goal)} categoryColors={categoryColors} />
+                viewMode === 'compact' ? (
+                  <CompactGoalCard key={goal.id} goal={goal} onClick={() => handleCardClick(goal)} categoryColors={categoryColors} />
+                ) : (
+                  <GoalCard key={goal.id} goal={goal} onClick={() => handleCardClick(goal)} categoryColors={categoryColors} />
+                )
               ))}
             </div>
           </SortableContext>

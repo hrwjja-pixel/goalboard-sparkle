@@ -18,6 +18,18 @@ const getApiBaseUrl = () => {
 
 const API_BASE_URL = getApiBaseUrl();
 
+// Helper to get auth headers
+function getAuthHeaders(): HeadersInit {
+  const token = localStorage.getItem('auth_token');
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 interface CategoryWithId {
   id: string;
   name: string;
@@ -35,7 +47,7 @@ export const api = {
   async createCategory(name: string, color: string): Promise<CategoryWithId> {
     const response = await fetch(`${API_BASE_URL}/api/categories`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ name, color }),
     });
     if (!response.ok) throw new Error('Failed to create category');
@@ -45,7 +57,7 @@ export const api = {
   async updateCategoryColor(id: string, color: string): Promise<CategoryWithId> {
     const response = await fetch(`${API_BASE_URL}/api/categories/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ color }),
     });
     if (!response.ok) throw new Error('Failed to update category');
@@ -55,7 +67,7 @@ export const api = {
   async updateCategoryName(id: string, name: string): Promise<CategoryWithId> {
     const response = await fetch(`${API_BASE_URL}/api/categories/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ name }),
     });
     if (!response.ok) throw new Error('Failed to update category');
@@ -79,7 +91,7 @@ export const api = {
   async createGoal(goal: Goal): Promise<Goal> {
     const response = await fetch(`${API_BASE_URL}/api/goals`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(goal),
     });
     if (!response.ok) throw new Error('Failed to create goal');
@@ -89,7 +101,7 @@ export const api = {
   async updateGoal(id: string, goal: Goal): Promise<Goal> {
     const response = await fetch(`${API_BASE_URL}/api/goals/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(goal),
     });
     if (!response.ok) throw new Error('Failed to update goal');
@@ -106,7 +118,7 @@ export const api = {
   async reorderGoals(goals: { id: string; order: number }[]): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/api/goals/reorder`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ goals }),
     });
     if (!response.ok) throw new Error('Failed to reorder goals');

@@ -67,3 +67,33 @@ model Note {
 
   @@index([goalId])
 }
+
+model User {
+  id        String     @id @default(uuid())
+  googleId  String     @unique
+  email     String     @unique
+  name      String
+  picture   String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  auditLogs AuditLog[]
+
+  @@index([email])
+  @@index([googleId])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  action      String   // CREATE, UPDATE, DELETE, REORDER
+  entityType  String   // Goal, SubGoal, Note, Category
+  entityId    String   // ID of the changed entity
+  entityTitle String?  // Title/name of the entity (for reference)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  changes     String?  // JSON string with change details
+  createdAt   DateTime @default(now())
+
+  @@index([entityId])
+  @@index([userId])
+  @@index([createdAt])
+}

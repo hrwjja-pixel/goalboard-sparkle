@@ -1,14 +1,38 @@
 import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
+import session from 'express-session';
+import passport from 'passport';
 import { PrismaClient } from '@prisma/client';
+import { setupPassport } from './auth/passport';
+import authRoutes from './routes/auth';
+import { optionalAuth, AuthRequest } from './middleware/auth';
+import { attachAuditLog } from './middleware/audit';
 
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 
+// Setup Passport
+setupPassport();
+
 app.use(cors());
 app.use(express.json());
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || 'default-secret',
+    resave: false,
+    saveUninitialized: false,
+  })
+);
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Auth routes
+app.use('/api/auth', authRoutes);
+
+// Apply optional auth and audit middleware to all API routes
+app.use('/api', optionalAuth, attachAuditLog);
 
 // Health check
 app.get('/api/health', (req: Request, res: Response) => {
@@ -28,12 +52,21 @@ app.get('/api/categories', async (req: Request, res: Response) => {
   }
 });
 
-app.post('/api/categories', async (req: Request, res: Response) => {
+app.post('/api/categories', async (req: AuthRequest, res: Response) => {
   try {
     const { name, color } = req.body;
     const category = await prisma.category.create({
       data: { name, color },
     });
+
+    // Audit log
+    await (req as any).audit?.({
+      action: 'CREATE',
+      entityType: 'Category',
+      entityId: category.id,
+      entityTitle: category.name,
+    });
+
     res.json(category);
   } catch (error) {
     console.error('Error creating category:', error);
@@ -41,19 +74,32 @@ app.post('/api/categories', async (req: Request, res: Response) => {
   }
 });
 
-app.delete('/api/categories/:id', async (req: Request, res: Response) => {
+app.delete('/api/categories/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
+
+    // Get category name before deletion for audit log
+    const category = await prisma.category.findUnique({ where: { id } });
+
     await prisma.category.delete({
       where: { id },
     });
+
+    // Audit log
+    await (req as any).audit?.({
+      action: 'DELETE',
+      entityType: 'Category',
+      entityId: id,
+      entityTitle: category?.name || 'Unknown',
+    });
+
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete category' });
   }
 });
 
-app.put('/api/categories/:id', async (req: Request, res: Response) => {
+app.put('/api/categories/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { color, name } = req.body;
@@ -65,6 +111,15 @@ app.put('/api/categories/:id', async (req: Request, res: Response) => {
       where: { id },
       data: updateData,
     });
+
+    // Audit log
+    await (req as any).audit?.({
+      action: 'UPDATE',
+      entityType: 'Category',
+      entityId: category.id,
+      entityTitle: category.name,
+    });
+
     res.json(category);
   } catch (error) {
     console.error('Error updating category:', error);
@@ -112,7 +167,7 @@ app.get('/api/goals', async (req: Request, res: Response) => {
   }
 });
 
-app.post('/api/goals', async (req: Request, res: Response) => {
+app.post('/api/goals', async (req: AuthRequest, res: Response) => {
   try {
     const { categories, subGoals, notes, ...goalData } = req.body;
 
@@ -177,6 +232,14 @@ app.post('/api/goals', async (req: Request, res: Response) => {
       },
     });
 
+    // Audit log
+    await (req as any).audit?.({
+      action: 'CREATE',
+      entityType: 'Goal',
+      entityId: goal.id,
+      entityTitle: goal.title,
+    });
+
     res.json({
       ...goal,
       categories: goal.categories.map(cat => cat.name),
@@ -189,7 +252,7 @@ app.post('/api/goals', async (req: Request, res: Response) => {
 
 // Bulk update goal orders (for drag and drop)
 // IMPORTANT: This must be before /api/goals/:id to avoid route matching issues
-app.put('/api/goals/reorder', async (req: Request, res: Response) => {
+app.put('/api/goals/reorder', async (req: AuthRequest, res: Response) => {
   try {
     const { goals } = req.body;
 
@@ -206,6 +269,14 @@ app.put('/api/goals/reorder', async (req: Request, res: Response) => {
       )
     );
 
+    // Audit log
+    await (req as any).audit?.({
+      action: 'REORDER',
+      entityType: 'Goal',
+      entityId: 'bulk',
+      entityTitle: `${goals.length} goals reordered`,
+    });
+
     res.json({ success: true });
   } catch (error) {
     console.error('Error reordering goals:', error);
@@ -213,7 +284,7 @@ app.put('/api/goals/reorder', async (req: Request, res: Response) => {
   }
 });
 
-app.put('/api/goals/:id', async (req: Request, res: Response) => {
+app.put('/api/goals/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { categories, subGoals, notes, ...goalData } = req.body;
@@ -289,6 +360,14 @@ app.put('/api/goals/:id', async (req: Request, res: Response) => {
       },
     });
 
+    // Audit log
+    await (req as any).audit?.({
+      action: 'UPDATE',
+      entityType: 'Goal',
+      entityId: goal.id,
+      entityTitle: goal.title,
+    });
+
     res.json({
       ...goal,
       categories: goal.categories.map(cat => cat.name),
@@ -299,12 +378,25 @@ app.put('/api/goals/:id', async (req: Request, res: Response) => {
   }
 });
 
-app.delete('/api/goals/:id', async (req: Request, res: Response) => {
+app.delete('/api/goals/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
+
+    // Get goal title before deletion for audit log
+    const goal = await prisma.goal.findUnique({ where: { id } });
+
     await prisma.goal.delete({
       where: { id },
     });
+
+    // Audit log
+    await (req as any).audit?.({
+      action: 'DELETE',
+      entityType: 'Goal',
+      entityId: id,
+      entityTitle: goal?.title || 'Unknown',
+    });
+
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete goal' });
