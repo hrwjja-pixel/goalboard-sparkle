@@ -3,7 +3,6 @@ import { Goal, GoalCategory } from '@/types/goal';
 import { initialGoals } from '@/data/initialGoals';
 import { OverallSummary } from '@/components/OverallSummary';
 import { CompactOverallSummary } from '@/components/CompactOverallSummary';
-import { FilterBar } from '@/components/FilterBar';
 import { GoalCard } from '@/components/GoalCard';
 import { CompactGoalCard } from '@/components/CompactGoalCard';
 import { GoalDetailModal } from '@/components/GoalDetailModal';
@@ -44,7 +43,7 @@ const Index = () => {
   const [categoryColors, setCategoryColors] = useState<Record<string, string>>({});
   const [categoryIds, setCategoryIds] = useState<Record<string, string>>({});
   const [searchText, setSearchText] = useState('');
-  const [selectedOwner, setSelectedOwner] = useState('all');
+  const [selectedOwners, setSelectedOwners] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<GoalCategory[]>([]);
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -103,16 +102,6 @@ const Index = () => {
     loadData();
   }, []);
 
-  // Get unique owners
-  const owners = useMemo(() => {
-    const ownerSet = new Set<string>();
-    goals.forEach((goal) => {
-      ownerSet.add(goal.owner);
-      goal.subGoals?.forEach((sg) => ownerSet.add(sg.owner));
-    });
-    return Array.from(ownerSet).sort();
-  }, [goals]);
-
   // Filter and sort goals
   const filteredGoals = useMemo(() => {
     return goals.filter((goal) => {
@@ -121,8 +110,8 @@ const Index = () => {
         return false;
       }
 
-      // Owner filter
-      if (selectedOwner !== 'all' && goal.owner !== selectedOwner) {
+      // Owner filter - if any owners selected, goal owner must be in the list
+      if (selectedOwners.length > 0 && !selectedOwners.includes(goal.owner)) {
         return false;
       }
 
@@ -132,19 +121,53 @@ const Index = () => {
         const matchesTitle = goal.title.toLowerCase().includes(searchLower);
         const matchesDesc = goal.description?.toLowerCase().includes(searchLower);
         const matchesOwner = goal.owner.toLowerCase().includes(searchLower);
-        
+
         return matchesTitle || matchesDesc || matchesOwner;
       }
 
       return true;
     }).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  }, [goals, selectedCategories, selectedOwner, searchText]);
+  }, [goals, selectedCategories, selectedOwners, searchText]);
+
+  // Get unique owners from main goals only (filtered by category and search, excluding owner filter)
+  const owners = useMemo(() => {
+    const ownerSet = new Set<string>();
+    goals.forEach((goal) => {
+      // Apply same filters as filteredGoals except owner filter
+      if (!goal.categories || !goal.categories.some(cat => selectedCategories.includes(cat))) {
+        return;
+      }
+
+      if (searchText) {
+        const searchLower = searchText.toLowerCase();
+        const matchesTitle = goal.title.toLowerCase().includes(searchLower);
+        const matchesDesc = goal.description?.toLowerCase().includes(searchLower);
+        const matchesOwner = goal.owner.toLowerCase().includes(searchLower);
+
+        if (!matchesTitle && !matchesDesc && !matchesOwner) {
+          return;
+        }
+      }
+
+      // Only add main goal owner, not subGoal owners
+      ownerSet.add(goal.owner);
+    });
+    return Array.from(ownerSet).sort();
+  }, [goals, selectedCategories, searchText]);
 
   const handleCategoryToggle = (category: GoalCategory) => {
     setSelectedCategories((prev) =>
       prev.includes(category)
         ? prev.filter((c) => c !== category)
         : [...prev, category]
+    );
+  };
+
+  const handleOwnerToggle = (owner: string) => {
+    setSelectedOwners((prev) =>
+      prev.includes(owner)
+        ? prev.filter((o) => o !== owner)
+        : [...prev, owner]
     );
   };
 
@@ -331,6 +354,18 @@ const Index = () => {
             onAddGoal={() => setIsAddModalOpen(true)}
             categoryColors={categoryColors}
             onToggleView={() => setViewMode('compact')}
+            searchText={searchText}
+            onSearchChange={setSearchText}
+            selectedOwners={selectedOwners}
+            onOwnerToggle={handleOwnerToggle}
+            selectedCategories={selectedCategories}
+            onCategoryToggle={handleCategoryToggle}
+            owners={owners}
+            categories={categories}
+            onAddCategory={handleAddCategory}
+            onDeleteCategory={handleDeleteCategory}
+            onCategoryColorChange={handleCategoryColorChange}
+            onCategoryNameChange={handleCategoryNameChange}
           />
         ) : (
           <CompactOverallSummary
@@ -338,24 +373,6 @@ const Index = () => {
             onAddGoal={() => setIsAddModalOpen(true)}
             onToggleView={() => setViewMode('normal')}
             categoryColors={categoryColors}
-          />
-        )}
-
-        {viewMode === 'normal' && (
-          <FilterBar
-            searchText={searchText}
-            onSearchChange={setSearchText}
-            selectedOwner={selectedOwner}
-            onOwnerChange={setSelectedOwner}
-            selectedCategories={selectedCategories}
-            onCategoryToggle={handleCategoryToggle}
-            owners={owners}
-            categories={categories}
-            categoryColors={categoryColors}
-            onAddCategory={handleAddCategory}
-            onDeleteCategory={handleDeleteCategory}
-            onCategoryColorChange={handleCategoryColorChange}
-            onCategoryNameChange={handleCategoryNameChange}
           />
         )}
 

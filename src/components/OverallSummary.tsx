@@ -1,8 +1,9 @@
-import { Goal } from '@/types/goal';
+import { Goal, GoalCategory } from '@/types/goal';
 import { Progress } from '@/components/ui/progress';
 import { TrendingUp, Plus, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { FilterBar } from '@/components/FilterBar';
 
 interface OverallSummaryProps {
   goals: Goal[];
@@ -10,9 +11,39 @@ interface OverallSummaryProps {
   onAddGoal: () => void;
   categoryColors?: Record<string, string>;
   onToggleView?: () => void;
+  searchText: string;
+  onSearchChange: (text: string) => void;
+  selectedOwners: string[];
+  onOwnerToggle: (owner: string) => void;
+  selectedCategories: GoalCategory[];
+  onCategoryToggle: (category: GoalCategory) => void;
+  owners: string[];
+  categories: GoalCategory[];
+  onAddCategory: (category: string) => void;
+  onDeleteCategory: (category: string) => void;
+  onCategoryColorChange: (category: string, color: string) => void;
+  onCategoryNameChange?: (oldName: string, newName: string) => void;
 }
 
-export const OverallSummary = ({ goals, filteredGoals, onAddGoal, categoryColors, onToggleView }: OverallSummaryProps) => {
+export const OverallSummary = ({
+  goals,
+  filteredGoals,
+  onAddGoal,
+  categoryColors,
+  onToggleView,
+  searchText,
+  onSearchChange,
+  selectedOwners,
+  onOwnerToggle,
+  selectedCategories,
+  onCategoryToggle,
+  owners,
+  categories,
+  onAddCategory,
+  onDeleteCategory,
+  onCategoryColorChange,
+  onCategoryNameChange
+}: OverallSummaryProps) => {
   const overallAverage = Math.round(
     goals.reduce((sum, goal) => sum + goal.progress, 0) / goals.length
   );
@@ -41,9 +72,43 @@ export const OverallSummary = ({ goals, filteredGoals, onAddGoal, categoryColors
   return (
     <div className="bg-card rounded-xl shadow-lg p-5 mb-6 border border-border">
       <div className="flex items-center justify-between mb-4">
-        <div>
-          <h2 className="text-2xl font-bold mb-1">WEHAGO H 목표 대시보드</h2>
-          <p className="text-sm text-muted-foreground">EMR개발본부 &gt; WEHAGO H 개발센터</p>
+        <div className="flex items-center gap-10">
+          <div>
+            <h2 className="text-2xl font-bold mb-1">WEHAGO H 목표 대시보드</h2>
+            <p className="text-sm text-muted-foreground">EMR개발본부 &gt; WEHAGO H 개발센터</p>
+          </div>
+          {Object.keys(categoryStats).length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(categoryStats).map(([category, stats]) => {
+                const color = categoryColors?.[category] || '#6b7280';
+                const avgProgress = Math.round(stats.totalProgress / stats.count);
+
+                return (
+                  <div
+                    key={category}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 transition-all"
+                    style={{
+                      backgroundColor: `${color}10`,
+                      borderColor: `${color}40`,
+                    }}
+                  >
+                    <Badge
+                      style={{
+                        backgroundColor: color,
+                        color: '#ffffff',
+                      }}
+                      className="text-xs font-semibold"
+                    >
+                      {category}
+                    </Badge>
+                    <span className="text-xs font-medium" style={{ color }}>
+                      {stats.count}개 · {avgProgress}%
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-lg">
@@ -62,7 +127,7 @@ export const OverallSummary = ({ goals, filteredGoals, onAddGoal, categoryColors
           </Button>
         </div>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <div className="flex justify-between items-end">
@@ -77,7 +142,7 @@ export const OverallSummary = ({ goals, filteredGoals, onAddGoal, categoryColors
           </div>
           <Progress value={overallAverage} className="h-2" />
         </div>
-        
+
         <div className="space-y-2">
           <div className="flex justify-between items-end">
             <div>
@@ -93,41 +158,23 @@ export const OverallSummary = ({ goals, filteredGoals, onAddGoal, categoryColors
         </div>
       </div>
 
-      {Object.keys(categoryStats).length > 0 && (
-        <div className="mt-4 pt-4 border-t border-border">
-          <h3 className="text-xs font-semibold text-muted-foreground mb-2">카테고리별 현황</h3>
-          <div className="flex flex-wrap gap-2">
-            {Object.entries(categoryStats).map(([category, stats]) => {
-              const color = categoryColors?.[category] || '#6b7280';
-              const avgProgress = Math.round(stats.totalProgress / stats.count);
-              
-              return (
-                <div
-                  key={category}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 transition-all"
-                  style={{
-                    backgroundColor: `${color}10`,
-                    borderColor: `${color}40`,
-                  }}
-                >
-                  <Badge
-                    style={{
-                      backgroundColor: color,
-                      color: '#ffffff',
-                    }}
-                    className="text-xs font-semibold"
-                  >
-                    {category}
-                  </Badge>
-                  <span className="text-xs font-medium" style={{ color }}>
-                    {stats.count}개 · {avgProgress}%
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <div className="mt-4 pt-4 border-t border-border">
+        <FilterBar
+          searchText={searchText}
+          onSearchChange={onSearchChange}
+          selectedOwners={selectedOwners}
+          onOwnerToggle={onOwnerToggle}
+          selectedCategories={selectedCategories}
+          onCategoryToggle={onCategoryToggle}
+          owners={owners}
+          categories={categories}
+          categoryColors={categoryColors || {}}
+          onAddCategory={onAddCategory}
+          onDeleteCategory={onDeleteCategory}
+          onCategoryColorChange={onCategoryColorChange}
+          onCategoryNameChange={onCategoryNameChange}
+        />
+      </div>
     </div>
   );
 };

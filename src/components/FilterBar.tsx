@@ -2,17 +2,17 @@ import { GoalCategory } from '@/types/goal';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Filter, Plus, X, ChevronDown, Palette, Edit2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Search, Plus, X, Palette, Edit2, Filter, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface FilterBarProps {
   searchText: string;
   onSearchChange: (text: string) => void;
-  selectedOwner: string;
-  onOwnerChange: (owner: string) => void;
+  selectedOwners: string[];
+  onOwnerToggle: (owner: string) => void;
   selectedCategories: GoalCategory[];
   onCategoryToggle: (category: GoalCategory) => void;
   owners: string[];
@@ -27,8 +27,8 @@ interface FilterBarProps {
 export const FilterBar = ({
   searchText,
   onSearchChange,
-  selectedOwner,
-  onOwnerChange,
+  selectedOwners,
+  onOwnerToggle,
   selectedCategories,
   onCategoryToggle,
   owners,
@@ -41,7 +41,6 @@ export const FilterBar = ({
 }: FilterBarProps) => {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [isAddingCategory, setIsAddingCategory] = useState(false);
-  const [isOpen, setIsOpen] = useState(true);
   const [editingColor, setEditingColor] = useState<string | null>(null);
   const [editingName, setEditingName] = useState<string | null>(null);
   const [tempCategoryName, setTempCategoryName] = useState('');
@@ -56,42 +55,87 @@ export const FilterBar = ({
 
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="bg-card rounded-lg shadow-md mb-6 border border-border">
-      <div className="p-6 pb-4">
-        <CollapsibleTrigger className="flex items-center gap-2 w-full hover:opacity-70 transition-opacity">
+    <div>
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Filter className="w-5 h-5 text-muted-foreground" />
           <h3 className="font-semibold text-lg">필터</h3>
-          <ChevronDown className={cn("w-5 h-5 text-muted-foreground transition-transform ml-auto", isOpen && "rotate-180")} />
-        </CollapsibleTrigger>
-      </div>
-      
-      <CollapsibleContent className="px-6 pb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="relative">
+        </div>
+        <div className="relative w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="목표 검색..."
             value={searchText}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-9"
+            className="pl-9 h-9"
           />
         </div>
-        
-        <Select value={selectedOwner} onValueChange={onOwnerChange}>
-          <SelectTrigger>
-            <SelectValue placeholder="담당자 선택" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">모든 담당자</SelectItem>
-            {owners.map((owner) => (
-              <SelectItem key={owner} value={owner}>
-                {owner}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        
-        <div className="col-span-1 md:col-span-2 flex flex-wrap gap-2">
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-40 h-9 justify-between">
+              <span className="text-sm">
+                {selectedOwners.length === 0
+                  ? "담당자 선택"
+                  : `${selectedOwners.length}명 선택`}
+              </span>
+              <ChevronDown className="w-4 h-4 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-3">
+            {owners.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-2">
+                담당자가 없습니다
+              </p>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex gap-2 pb-2 border-b">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 h-8 text-xs"
+                    onClick={() => owners.forEach(owner => {
+                      if (!selectedOwners.includes(owner)) {
+                        onOwnerToggle(owner);
+                      }
+                    })}
+                  >
+                    전체 선택
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 h-8 text-xs"
+                    onClick={() => {
+                      selectedOwners.forEach(owner => onOwnerToggle(owner));
+                    }}
+                  >
+                    전체 해제
+                  </Button>
+                </div>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {owners.map((owner) => (
+                    <div key={owner} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`owner-${owner}`}
+                        checked={selectedOwners.includes(owner)}
+                        onCheckedChange={() => onOwnerToggle(owner)}
+                      />
+                      <label
+                        htmlFor={`owner-${owner}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
+                      >
+                        {owner}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </PopoverContent>
+        </Popover>
+
+        <div className="flex flex-wrap gap-2 flex-1">
           {categories.map((category) => {
             const isSelected = selectedCategories.includes(category);
             const color = categoryColors[category] || '#6b7280';
@@ -102,7 +146,7 @@ export const FilterBar = ({
                 <div
                   onClick={() => !isEditingThisName && onCategoryToggle(category)}
                   className={cn(
-                    'flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 transition-all pr-20',
+                    'flex items-center gap-1.5 px-2.5 py-1 rounded-md border transition-all pr-16',
                     !isEditingThisName && 'cursor-pointer',
                     isSelected
                       ? 'bg-primary/10 border-primary/30'
@@ -117,7 +161,7 @@ export const FilterBar = ({
                     <Input
                       value={tempCategoryName}
                       onChange={(e) => setTempCategoryName(e.target.value)}
-                      className="h-6 px-2 text-xs font-semibold w-24"
+                      className="h-5 px-2 text-[10px] font-semibold w-20"
                       autoFocus
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && tempCategoryName.trim()) {
@@ -138,7 +182,7 @@ export const FilterBar = ({
                         backgroundColor: color,
                         color: '#ffffff',
                       }}
-                      className="text-xs font-semibold"
+                      className="text-[10px] font-semibold py-0 px-1.5"
                     >
                       {category}
                     </Badge>
@@ -152,7 +196,7 @@ export const FilterBar = ({
                     setEditingName(category);
                     setEditingColor(null);
                   }}
-                  className="p-1 hover:bg-accent/20 rounded"
+                  className="p-0.5 hover:bg-accent/20 rounded"
                   title="이름 변경"
                 >
                   <Edit2 className="w-3 h-3" />
@@ -163,7 +207,7 @@ export const FilterBar = ({
                     setEditingColor(editingColor === category ? null : category);
                     setEditingName(null);
                   }}
-                  className="p-1 hover:bg-accent/20 rounded"
+                  className="p-0.5 hover:bg-accent/20 rounded"
                   title="색상 변경"
                 >
                   <Palette className="w-3 h-3" />
@@ -173,15 +217,15 @@ export const FilterBar = ({
                     e.stopPropagation();
                     onDeleteCategory(category);
                   }}
-                  className="p-1 hover:bg-destructive/20 rounded"
+                  className="p-0.5 hover:bg-destructive/20 rounded"
                   title="카테고리 삭제"
                 >
                   <X className="w-3 h-3 text-destructive" />
                 </button>
               </div>
-              
+
               {editingColor === category && (
-                <div 
+                <div
                   className="absolute top-full mt-1 left-0 z-50 p-3 bg-card border border-border rounded-lg shadow-lg"
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -208,14 +252,14 @@ export const FilterBar = ({
             </div>
           );
           })}
-          
+
           {isAddingCategory ? (
             <div className="flex gap-1 items-center">
               <Input
                 value={newCategoryName}
                 onChange={(e) => setNewCategoryName(e.target.value)}
                 placeholder="카테고리명"
-                className="h-9 w-32"
+                className="h-7 w-24 text-xs"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleAddCategoryClick();
                   if (e.key === 'Escape') {
@@ -225,7 +269,7 @@ export const FilterBar = ({
                 }}
                 autoFocus
               />
-              <Button onClick={handleAddCategoryClick} size="sm" variant="default">
+              <Button onClick={handleAddCategoryClick} size="sm" variant="default" className="h-7 px-2 text-xs">
                 추가
               </Button>
               <Button
@@ -235,6 +279,7 @@ export const FilterBar = ({
                 }}
                 size="sm"
                 variant="ghost"
+                className="h-7 px-2 text-xs"
               >
                 취소
               </Button>
@@ -244,15 +289,14 @@ export const FilterBar = ({
               onClick={() => setIsAddingCategory(true)}
               size="sm"
               variant="outline"
-              className="border-dashed"
+              className="border-dashed h-7 px-2 text-xs"
             >
-              <Plus className="w-4 h-4 mr-1" />
+              <Plus className="w-3 h-3 mr-1" />
               카테고리 추가
             </Button>
           )}
         </div>
       </div>
-      </CollapsibleContent>
-    </Collapsible>
+    </div>
   );
 };
