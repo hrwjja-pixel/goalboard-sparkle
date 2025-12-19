@@ -5,6 +5,7 @@ import { OverallSummary } from '@/components/OverallSummary';
 import { CompactOverallSummary } from '@/components/CompactOverallSummary';
 import { GoalCard } from '@/components/GoalCard';
 import { CompactGoalCard } from '@/components/CompactGoalCard';
+import { ListView } from '@/components/ListView';
 import { GoalDetailModal } from '@/components/GoalDetailModal';
 import { AddGoalModal } from '@/components/AddGoalModal';
 import { Button } from '@/components/ui/button';
@@ -49,7 +50,7 @@ const Index = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'normal' | 'compact'>('compact');
+  const [viewMode, setViewMode] = useState<'normal' | 'compact' | 'list'>('compact');
   const [showCompleted, setShowCompleted] = useState(false);
   const [completedCount, setCompletedCount] = useState(0);
 
@@ -82,14 +83,11 @@ const Index = () => {
         setCategoryColors(colors);
         setCategoryIds(ids);
 
-        // Load all goals to get completed count (regardless of showCompleted filter)
+        // Load all goals (always load all, filtering will be done client-side)
         const allGoalsData = await api.getGoals(true);
         const completed = allGoalsData.filter(g => g.completed).length;
         setCompletedCount(completed);
-
-        // Load goals based on showCompleted filter
-        const goalsData = await api.getGoals(showCompleted);
-        setGoals(goalsData);
+        setGoals(allGoalsData);
       } catch (error) {
         console.error('Failed to load data:', error);
         // Fallback to default data
@@ -107,11 +105,16 @@ const Index = () => {
     };
 
     loadData();
-  }, [showCompleted]);
+  }, []);
 
-  // Filter and sort goals
+  // Filter and sort goals (for card views - excludes completed if showCompleted is false)
   const filteredGoals = useMemo(() => {
     return goals.filter((goal) => {
+      // Completed filter (only for card views, not list view)
+      if (!showCompleted && goal.completed) {
+        return false;
+      }
+
       // Category filter
       if (!goal.categories || !goal.categories.some(cat => selectedCategories.includes(cat))) {
         return false;
@@ -134,7 +137,7 @@ const Index = () => {
 
       return true;
     }).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  }, [goals, selectedCategories, selectedOwners, searchText]);
+  }, [goals, selectedCategories, selectedOwners, searchText, showCompleted]);
 
   // Get unique owners from main goals only (filtered by category and search, excluding owner filter)
   const owners = useMemo(() => {
@@ -204,14 +207,11 @@ const Index = () => {
     try {
       await api.toggleGoalCompletion(goalId, completed);
 
-      // Update completed count
+      // Reload all goals and update completed count
       const allGoalsData = await api.getGoals(true);
       const completedTotal = allGoalsData.filter(g => g.completed).length;
       setCompletedCount(completedTotal);
-
-      // Reload goals to reflect the filter (completed items will be hidden if showCompleted is false)
-      const goalsData = await api.getGoals(showCompleted);
-      setGoals(goalsData);
+      setGoals(allGoalsData);
     } catch (error) {
       console.error('Failed to toggle goal completion:', error);
       alert('목표 완료 상태 변경에 실패했습니다.');
@@ -372,13 +372,14 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="w-full px-6 py-6">
-        {viewMode === 'normal' ? (
+        {viewMode === 'normal' || viewMode === 'list' ? (
           <OverallSummary
             goals={goals}
             filteredGoals={filteredGoals}
             onAddGoal={() => setIsAddModalOpen(true)}
             categoryColors={categoryColors}
-            onToggleView={() => setViewMode('compact')}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
             searchText={searchText}
             onSearchChange={setSearchText}
             selectedOwners={selectedOwners}
@@ -399,7 +400,8 @@ const Index = () => {
           <CompactOverallSummary
             goals={goals}
             onAddGoal={() => setIsAddModalOpen(true)}
-            onToggleView={() => setViewMode('normal')}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
             categoryColors={categoryColors}
             showCompleted={showCompleted}
             onShowCompletedToggle={() => setShowCompleted(!showCompleted)}
@@ -407,48 +409,59 @@ const Index = () => {
           />
         )}
 
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={filteredGoals.map((goal) => goal.id)}
-            strategy={rectSortingStrategy}
-          >
-            <div className={viewMode === 'compact'
-              ? "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 auto-rows-auto"
-              : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 auto-rows-auto"
-            }>
-              {filteredGoals.map((goal) => (
-                viewMode === 'compact' ? (
-                  <CompactGoalCard
-                    key={goal.id}
-                    goal={goal}
-                    onClick={() => handleCardClick(goal)}
-                    categoryColors={categoryColors}
-                    onToggleComplete={handleToggleComplete}
-                  />
-                ) : (
-                  <GoalCard
-                    key={goal.id}
-                    goal={goal}
-                    onClick={() => handleCardClick(goal)}
-                    categoryColors={categoryColors}
-                    onToggleComplete={handleToggleComplete}
-                  />
-                )
-              ))}
-            </div>
-          </SortableContext>
-        </DndContext>
+        {viewMode === 'list' ? (
+          <ListView
+            goals={goals}
+            categoryColors={categoryColors}
+            onGoalClick={handleCardClick}
+            onToggleComplete={handleToggleComplete}
+          />
+        ) : (
+          <>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={filteredGoals.map((goal) => goal.id)}
+                strategy={rectSortingStrategy}
+              >
+                <div className={viewMode === 'compact'
+                  ? "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 auto-rows-auto"
+                  : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 auto-rows-auto"
+                }>
+                  {filteredGoals.map((goal) => (
+                    viewMode === 'compact' ? (
+                      <CompactGoalCard
+                        key={goal.id}
+                        goal={goal}
+                        onClick={() => handleCardClick(goal)}
+                        categoryColors={categoryColors}
+                        onToggleComplete={handleToggleComplete}
+                      />
+                    ) : (
+                      <GoalCard
+                        key={goal.id}
+                        goal={goal}
+                        onClick={() => handleCardClick(goal)}
+                        categoryColors={categoryColors}
+                        onToggleComplete={handleToggleComplete}
+                      />
+                    )
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
 
-        {filteredGoals.length === 0 && (
-          <div className="text-center py-16">
-            <p className="text-xl text-muted-foreground">
-              필터 조건에 맞는 목표가 없습니다.
-            </p>
-          </div>
+            {filteredGoals.length === 0 && (
+              <div className="text-center py-16">
+                <p className="text-xl text-muted-foreground">
+                  필터 조건에 맞는 목표가 없습니다.
+                </p>
+              </div>
+            )}
+          </>
         )}
       </div>
 

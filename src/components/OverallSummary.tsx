@@ -1,16 +1,23 @@
 import { Goal, GoalCategory } from '@/types/goal';
 import { Progress } from '@/components/ui/progress';
-import { TrendingUp, Plus, Minimize2 } from 'lucide-react';
+import { TrendingUp, Plus, Minimize2, List, Maximize2, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { FilterBar } from '@/components/FilterBar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface OverallSummaryProps {
   goals: Goal[];
   filteredGoals: Goal[];
   onAddGoal: () => void;
   categoryColors?: Record<string, string>;
-  onToggleView?: () => void;
+  viewMode?: 'normal' | 'compact' | 'list';
+  onViewModeChange?: (mode: 'normal' | 'compact' | 'list') => void;
   searchText: string;
   onSearchChange: (text: string) => void;
   selectedOwners: string[];
@@ -33,7 +40,8 @@ export const OverallSummary = ({
   filteredGoals,
   onAddGoal,
   categoryColors,
-  onToggleView,
+  viewMode = 'normal',
+  onViewModeChange,
   searchText,
   onSearchChange,
   selectedOwners,
@@ -121,11 +129,31 @@ export const OverallSummary = ({
             <TrendingUp className="w-4 h-4 text-primary" />
             <span className="text-sm font-semibold text-primary">진행 중</span>
           </div>
-          {onToggleView && (
-            <Button onClick={onToggleView} size="default" variant="outline">
-              <Minimize2 className="w-4 h-4 mr-2" />
-              요약보기
-            </Button>
+          {onViewModeChange && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="default" variant="outline">
+                  {viewMode === 'normal' && <><Maximize2 className="w-4 h-4 mr-2" />상세보기</>}
+                  {viewMode === 'compact' && <><Minimize2 className="w-4 h-4 mr-2" />요약보기</>}
+                  {viewMode === 'list' && <><List className="w-4 h-4 mr-2" />목록보기</>}
+                  <ChevronDown className="w-4 h-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => onViewModeChange('compact')}>
+                  <Minimize2 className="w-4 h-4 mr-2" />
+                  요약보기
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onViewModeChange('normal')}>
+                  <Maximize2 className="w-4 h-4 mr-2" />
+                  상세보기
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onViewModeChange('list')}>
+                  <List className="w-4 h-4 mr-2" />
+                  목록보기
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
           <Button onClick={onAddGoal} size="default" className="shadow-lg">
             <Plus className="w-4 h-4 mr-2" />
@@ -164,26 +192,28 @@ export const OverallSummary = ({
         </div>
       </div>
 
-      <div className="mt-4 pt-4 border-t border-border">
-        <FilterBar
-          searchText={searchText}
-          onSearchChange={onSearchChange}
-          selectedOwners={selectedOwners}
-          onOwnerToggle={onOwnerToggle}
-          selectedCategories={selectedCategories}
-          onCategoryToggle={onCategoryToggle}
-          owners={owners}
-          categories={categories}
-          categoryColors={categoryColors || {}}
-          onAddCategory={onAddCategory}
-          onDeleteCategory={onDeleteCategory}
-          onCategoryColorChange={onCategoryColorChange}
-          onCategoryNameChange={onCategoryNameChange}
-          showCompleted={showCompleted}
-          onShowCompletedToggle={onShowCompletedToggle}
-          completedCount={completedCount}
-        />
-      </div>
+      {viewMode !== 'list' && (
+        <div className="mt-4 pt-4 border-t border-border">
+          <FilterBar
+            searchText={searchText}
+            onSearchChange={onSearchChange}
+            selectedOwners={selectedOwners}
+            onOwnerToggle={onOwnerToggle}
+            selectedCategories={selectedCategories}
+            onCategoryToggle={onCategoryToggle}
+            owners={owners}
+            categories={categories}
+            categoryColors={categoryColors || {}}
+            onAddCategory={onAddCategory}
+            onDeleteCategory={onDeleteCategory}
+            onCategoryColorChange={onCategoryColorChange}
+            onCategoryNameChange={onCategoryNameChange}
+            showCompleted={showCompleted}
+            onShowCompletedToggle={onShowCompletedToggle}
+            completedCount={completedCount}
+          />
+        </div>
+      )}
     </div>
   );
 };

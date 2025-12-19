@@ -1,21 +1,28 @@
 import { Goal } from '@/types/goal';
 import { Progress } from '@/components/ui/progress';
-import { TrendingUp, Plus, Maximize2 } from 'lucide-react';
+import { TrendingUp, Plus, Maximize2, List, Minimize2, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface CompactOverallSummaryProps {
   goals: Goal[];
   onAddGoal: () => void;
-  onToggleView: () => void;
+  viewMode?: 'normal' | 'compact' | 'list';
+  onViewModeChange?: (mode: 'normal' | 'compact' | 'list') => void;
   categoryColors?: Record<string, string>;
   showCompleted: boolean;
   onShowCompletedToggle: () => void;
   completedCount: number;
 }
 
-export const CompactOverallSummary = ({ goals, onAddGoal, onToggleView, categoryColors, showCompleted, onShowCompletedToggle, completedCount }: CompactOverallSummaryProps) => {
+export const CompactOverallSummary = ({ goals, onAddGoal, viewMode = 'compact', onViewModeChange, categoryColors, showCompleted, onShowCompletedToggle, completedCount }: CompactOverallSummaryProps) => {
   const overallAverage = goals.length > 0
     ? Math.round(goals.reduce((sum, goal) => sum + goal.progress, 0) / goals.length)
     : 0;
@@ -97,10 +104,32 @@ export const CompactOverallSummary = ({ goals, onAddGoal, onToggleView, category
               className="data-[state=checked]:bg-green-600"
             />
           </div>
-          <Button onClick={onToggleView} size="default" variant="default" className="shadow-lg bg-primary text-primary-foreground hover:bg-primary/90">
-            <Maximize2 className="w-4 h-4 mr-2" />
-            상세보기
-          </Button>
+          {onViewModeChange && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="default" variant="default" className="shadow-lg bg-primary text-primary-foreground hover:bg-primary/90">
+                  {viewMode === 'normal' && <><Maximize2 className="w-4 h-4 mr-2" />상세보기</>}
+                  {viewMode === 'compact' && <><Minimize2 className="w-4 h-4 mr-2" />요약보기</>}
+                  {viewMode === 'list' && <><List className="w-4 h-4 mr-2" />목록보기</>}
+                  <ChevronDown className="w-4 h-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => onViewModeChange('compact')}>
+                  <Minimize2 className="w-4 h-4 mr-2" />
+                  요약보기
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onViewModeChange('normal')}>
+                  <Maximize2 className="w-4 h-4 mr-2" />
+                  상세보기
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onViewModeChange('list')}>
+                  <List className="w-4 h-4 mr-2" />
+                  목록보기
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <Button onClick={onAddGoal} size="sm" variant="outline" className="shadow-md">
             <Plus className="w-4 h-4 mr-2" />
             새 목표
