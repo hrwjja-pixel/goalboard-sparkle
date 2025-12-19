@@ -50,6 +50,8 @@ const Index = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'normal' | 'compact'>('compact');
+  const [showCompleted, setShowCompleted] = useState(false);
+  const [completedCount, setCompletedCount] = useState(0);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -80,8 +82,13 @@ const Index = () => {
         setCategoryColors(colors);
         setCategoryIds(ids);
 
-        // Load goals
-        const goalsData = await api.getGoals();
+        // Load all goals to get completed count (regardless of showCompleted filter)
+        const allGoalsData = await api.getGoals(true);
+        const completed = allGoalsData.filter(g => g.completed).length;
+        setCompletedCount(completed);
+
+        // Load goals based on showCompleted filter
+        const goalsData = await api.getGoals(showCompleted);
         setGoals(goalsData);
       } catch (error) {
         console.error('Failed to load data:', error);
@@ -100,7 +107,7 @@ const Index = () => {
     };
 
     loadData();
-  }, []);
+  }, [showCompleted]);
 
   // Filter and sort goals
   const filteredGoals = useMemo(() => {
@@ -190,6 +197,24 @@ const Index = () => {
     } catch (error) {
       console.error('Failed to delete goal:', error);
       alert('목표 삭제에 실패했습니다.');
+    }
+  };
+
+  const handleToggleComplete = async (goalId: string, completed: boolean) => {
+    try {
+      await api.toggleGoalCompletion(goalId, completed);
+
+      // Update completed count
+      const allGoalsData = await api.getGoals(true);
+      const completedTotal = allGoalsData.filter(g => g.completed).length;
+      setCompletedCount(completedTotal);
+
+      // Reload goals to reflect the filter (completed items will be hidden if showCompleted is false)
+      const goalsData = await api.getGoals(showCompleted);
+      setGoals(goalsData);
+    } catch (error) {
+      console.error('Failed to toggle goal completion:', error);
+      alert('목표 완료 상태 변경에 실패했습니다.');
     }
   };
 
@@ -366,6 +391,9 @@ const Index = () => {
             onDeleteCategory={handleDeleteCategory}
             onCategoryColorChange={handleCategoryColorChange}
             onCategoryNameChange={handleCategoryNameChange}
+            showCompleted={showCompleted}
+            onShowCompletedToggle={() => setShowCompleted(!showCompleted)}
+            completedCount={completedCount}
           />
         ) : (
           <CompactOverallSummary
@@ -373,6 +401,9 @@ const Index = () => {
             onAddGoal={() => setIsAddModalOpen(true)}
             onToggleView={() => setViewMode('normal')}
             categoryColors={categoryColors}
+            showCompleted={showCompleted}
+            onShowCompletedToggle={() => setShowCompleted(!showCompleted)}
+            completedCount={completedCount}
           />
         )}
 
@@ -391,9 +422,21 @@ const Index = () => {
             }>
               {filteredGoals.map((goal) => (
                 viewMode === 'compact' ? (
-                  <CompactGoalCard key={goal.id} goal={goal} onClick={() => handleCardClick(goal)} categoryColors={categoryColors} />
+                  <CompactGoalCard
+                    key={goal.id}
+                    goal={goal}
+                    onClick={() => handleCardClick(goal)}
+                    categoryColors={categoryColors}
+                    onToggleComplete={handleToggleComplete}
+                  />
                 ) : (
-                  <GoalCard key={goal.id} goal={goal} onClick={() => handleCardClick(goal)} categoryColors={categoryColors} />
+                  <GoalCard
+                    key={goal.id}
+                    goal={goal}
+                    onClick={() => handleCardClick(goal)}
+                    categoryColors={categoryColors}
+                    onToggleComplete={handleToggleComplete}
+                  />
                 )
               ))}
             </div>

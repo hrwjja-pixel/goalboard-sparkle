@@ -1,7 +1,7 @@
 import { Goal, GoalCategory, GoalSize } from '@/types/goal';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, User, TrendingUp, GripVertical, StickyNote } from 'lucide-react';
+import { Calendar, User, TrendingUp, GripVertical, StickyNote, CheckCircle2, Circle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LinkifiedText } from '@/components/LinkifiedText';
 import { useSortable } from '@dnd-kit/sortable';
@@ -11,6 +11,7 @@ interface GoalCardProps {
   goal: Goal;
   onClick: () => void;
   categoryColors?: Record<string, string>;
+  onToggleComplete?: (goalId: string, completed: boolean) => void;
 }
 
 const getCategoryStyle = (category: GoalCategory, categoryColors?: Record<string, string>) => {
@@ -75,7 +76,7 @@ const getSizeBadge = (size: GoalSize) => {
   }
 };
 
-export const GoalCard = ({ goal, onClick, categoryColors }: GoalCardProps) => {
+export const GoalCard = ({ goal, onClick, categoryColors, onToggleComplete }: GoalCardProps) => {
   const {
     attributes,
     listeners,
@@ -113,16 +114,48 @@ export const GoalCard = ({ goal, onClick, categoryColors }: GoalCardProps) => {
         'hover:shadow-xl hover:-translate-y-1 animate-fade-in relative',
         categoryStyle.className,
         getSizeClass(goal.size),
-        isDragging && 'opacity-50 z-50'
+        isDragging && 'opacity-50 z-50',
+        goal.completed && 'opacity-60 saturate-50'
       )}
     >
-      <div
-        {...attributes}
-        {...listeners}
-        className="absolute top-2 right-2 cursor-grab active:cursor-grabbing p-1 hover:bg-foreground/10 rounded transition-colors"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <GripVertical className="w-5 h-5 text-foreground/40" />
+      <div className="absolute top-2 right-2 flex gap-2 items-center">
+        {onToggleComplete && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleComplete(goal.id, !goal.completed);
+            }}
+            className={cn(
+              "group relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg",
+              "transition-all duration-300 ease-out",
+              "hover:shadow-md hover:scale-105",
+              "border-2",
+              goal.completed
+                ? "bg-gradient-to-br from-green-500 to-emerald-600 border-green-400 text-white shadow-green-200/50 shadow-lg"
+                : "bg-background/95 backdrop-blur-sm border-border hover:border-green-400 hover:bg-green-50/50"
+            )}
+          >
+            {goal.completed ? (
+              <>
+                <CheckCircle2 className="w-4 h-4 animate-in zoom-in duration-300" />
+                <span className="text-xs font-semibold">완료</span>
+              </>
+            ) : (
+              <>
+                <Circle className="w-4 h-4 text-muted-foreground group-hover:text-green-500 transition-colors" />
+                <span className="text-xs font-medium text-muted-foreground group-hover:text-green-600 transition-colors">완료</span>
+              </>
+            )}
+          </button>
+        )}
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing p-1 hover:bg-foreground/10 rounded transition-colors"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripVertical className="w-5 h-5 text-foreground/40" />
+        </div>
       </div>
       <div onClick={onClick}>
       <div className="mb-3">

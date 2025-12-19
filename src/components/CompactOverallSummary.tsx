@@ -3,15 +3,19 @@ import { Progress } from '@/components/ui/progress';
 import { TrendingUp, Plus, Maximize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 
 interface CompactOverallSummaryProps {
   goals: Goal[];
   onAddGoal: () => void;
   onToggleView: () => void;
   categoryColors?: Record<string, string>;
+  showCompleted: boolean;
+  onShowCompletedToggle: () => void;
+  completedCount: number;
 }
 
-export const CompactOverallSummary = ({ goals, onAddGoal, onToggleView, categoryColors }: CompactOverallSummaryProps) => {
+export const CompactOverallSummary = ({ goals, onAddGoal, onToggleView, categoryColors, showCompleted, onShowCompletedToggle, completedCount }: CompactOverallSummaryProps) => {
   const overallAverage = goals.length > 0
     ? Math.round(goals.reduce((sum, goal) => sum + goal.progress, 0) / goals.length)
     : 0;
@@ -85,6 +89,14 @@ export const CompactOverallSummary = ({ goals, onAddGoal, onToggleView, category
         </div>
 
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-md border bg-background/50 shadow-sm">
+            <span className="text-xs font-medium text-muted-foreground">완료({completedCount})</span>
+            <Switch
+              checked={showCompleted}
+              onCheckedChange={onShowCompletedToggle}
+              className="data-[state=checked]:bg-green-600"
+            />
+          </div>
           <Button onClick={onToggleView} size="default" variant="default" className="shadow-lg bg-primary text-primary-foreground hover:bg-primary/90">
             <Maximize2 className="w-4 h-4 mr-2" />
             상세보기

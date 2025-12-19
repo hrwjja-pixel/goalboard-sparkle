@@ -82,8 +82,9 @@ export const api = {
   },
 
   // Goals
-  async getGoals(): Promise<Goal[]> {
-    const response = await fetch(`${API_BASE_URL}/api/goals`);
+  async getGoals(showCompleted: boolean = false): Promise<Goal[]> {
+    const url = `${API_BASE_URL}/api/goals?showCompleted=${showCompleted}`;
+    const response = await fetch(url);
     if (!response.ok) throw new Error('Failed to fetch goals');
     return response.json();
   },
@@ -122,5 +123,15 @@ export const api = {
       body: JSON.stringify({ goals }),
     });
     if (!response.ok) throw new Error('Failed to reorder goals');
+  },
+
+  async toggleGoalCompletion(id: string, completed: boolean): Promise<Goal> {
+    const response = await fetch(`${API_BASE_URL}/api/goals/${id}/complete`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ completed }),
+    });
+    if (!response.ok) throw new Error('Failed to toggle goal completion');
+    return response.json();
   },
 };

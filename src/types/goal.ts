@@ -34,4 +34,5 @@ export interface Goal {
   subGoals?: SubGoal[];
   notes?: Note[]; // 메모 히스토리
   order?: number; // 드래그 앤 드롭 순서
+  completed?: boolean; // 완료 여부
 }

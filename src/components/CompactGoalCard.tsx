@@ -1,7 +1,7 @@
 import { Goal, GoalCategory, GoalSize } from '@/types/goal';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, User, TrendingUp, GripVertical, StickyNote } from 'lucide-react';
+import { Calendar, User, TrendingUp, GripVertical, StickyNote, CheckCircle2, Circle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LinkifiedText } from '@/components/LinkifiedText';
 import { useSortable } from '@dnd-kit/sortable';
@@ -16,6 +16,7 @@ interface CompactGoalCardProps {
   goal: Goal;
   onClick: () => void;
   categoryColors?: Record<string, string>;
+  onToggleComplete?: (goalId: string, completed: boolean) => void;
 }
 
 // Helper function to blend color with white for opaque background
@@ -66,7 +67,7 @@ const getCategoryStyle = (category: GoalCategory, categoryColors?: Record<string
   };
 };
 
-export const CompactGoalCard = ({ goal, onClick, categoryColors }: CompactGoalCardProps) => {
+export const CompactGoalCard = ({ goal, onClick, categoryColors, onToggleComplete }: CompactGoalCardProps) => {
   const {
     attributes,
     listeners,
@@ -112,16 +113,48 @@ export const CompactGoalCard = ({ goal, onClick, categoryColors }: CompactGoalCa
             'rounded-lg border-2 p-3 cursor-pointer transition-all duration-300',
             'hover:shadow-lg hover:-translate-y-0.5 animate-fade-in relative',
             categoryStyle.className,
-            isDragging && 'opacity-50 z-50'
+            isDragging && 'opacity-50 z-50',
+            goal.completed && 'opacity-60 saturate-50'
           )}
         >
-          <div
-            {...attributes}
-            {...listeners}
-            className="absolute top-1.5 right-1.5 cursor-grab active:cursor-grabbing p-0.5 hover:bg-foreground/10 rounded transition-colors"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <GripVertical className="w-4 h-4 text-foreground/40" />
+          <div className="absolute top-1.5 right-1.5 flex gap-1 items-center">
+            {onToggleComplete && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleComplete(goal.id, !goal.completed);
+                }}
+                className={cn(
+                  "group relative flex items-center gap-1 px-1.5 py-1 rounded-md",
+                  "transition-all duration-300 ease-out",
+                  "hover:shadow-md hover:scale-105",
+                  "border",
+                  goal.completed
+                    ? "bg-gradient-to-br from-green-500 to-emerald-600 border-green-400 text-white shadow-green-200/50 shadow-md"
+                    : "bg-background/95 backdrop-blur-sm border-border hover:border-green-400 hover:bg-green-50/50"
+                )}
+              >
+                {goal.completed ? (
+                  <>
+                    <CheckCircle2 className="w-3 h-3 animate-in zoom-in duration-300" />
+                    <span className="text-[10px] font-semibold">완료</span>
+                  </>
+                ) : (
+                  <>
+                    <Circle className="w-3 h-3 text-muted-foreground group-hover:text-green-500 transition-colors" />
+                    <span className="text-[10px] font-medium text-muted-foreground group-hover:text-green-600 transition-colors">완료</span>
+                  </>
+                )}
+              </button>
+            )}
+            <div
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing p-0.5 hover:bg-foreground/10 rounded transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <GripVertical className="w-4 h-4 text-foreground/40" />
+            </div>
           </div>
           <div onClick={onClick}>
         <div className="mb-2">

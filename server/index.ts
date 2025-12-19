@@ -8,6 +8,7 @@ import { setupPassport } from './auth/passport';
 import authRoutes from './routes/auth';
 import { optionalAuth, AuthRequest } from './middleware/auth';
 import { attachAuditLog } from './middleware/audit';
+import path from 'path';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -130,7 +131,10 @@ app.put('/api/categories/:id', async (req: AuthRequest, res: Response) => {
 // Goals endpoints
 app.get('/api/goals', async (req: Request, res: Response) => {
   try {
+    const showCompleted = req.query.showCompleted === 'true';
+
     const goals = await prisma.goal.findMany({
+      where: showCompleted ? {} : { completed: false },
       include: {
         categories: true,
         subGoals: {
@@ -156,6 +160,7 @@ app.get('/api/goals', async (req: Request, res: Response) => {
       dueDate: goal.dueDate,
       statusNote: goal.statusNote,
       order: goal.order,
+      completed: goal.completed,
       subGoals: goal.subGoals,
       notes: goal.notes,
     }));
@@ -284,6 +289,41 @@ app.put('/api/goals/reorder', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// Toggle goal completion status
+app.put('/api/goals/:id/complete', async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { completed } = req.body;
+
+    const goal = await prisma.goal.update({
+      where: { id },
+      data: { completed },
+      include: {
+        categories: true,
+        subGoals: true,
+        notes: true,
+      },
+    });
+
+    // Audit log
+    await (req as any).audit?.({
+      action: 'UPDATE',
+      entityType: 'Goal',
+      entityId: goal.id,
+      entityTitle: goal.title,
+      changes: JSON.stringify({ completed }),
+    });
+
+    res.json({
+      ...goal,
+      categories: goal.categories.map(cat => cat.name),
+    });
+  } catch (error) {
+    console.error('Error toggling goal completion:', error);
+    res.status(500).json({ error: 'Failed to toggle goal completion', details: error });
+  }
+});
+
 app.put('/api/goals/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
@@ -402,6 +442,22 @@ app.delete('/api/goals/:id', async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Failed to delete goal' });
   }
 });
+
+// Serve static files from dist directory in production
+if (process.env.NODE_ENV === 'production' || Number(PORT) === 80) {
+  const distPath = path.resolve(process.cwd(), 'dist');
+  console.log('Serving static files from:', distPath);
+  app.use(express.static(distPath));
+
+  // Handle client-side routing - send all non-API requests to index.html
+  app.use((req: Request, res: Response, next) => {
+    // Skip if it's an API request
+    if (req.path.startsWith('/api')) {
+      return next();
+    }
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);

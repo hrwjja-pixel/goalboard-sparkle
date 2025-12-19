@@ -2,6 +2,7 @@ import { GoalCategory } from '@/types/goal';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Search, Plus, X, Palette, Edit2, Filter, ChevronDown } from 'lucide-react';
@@ -22,6 +23,9 @@ interface FilterBarProps {
   onDeleteCategory: (category: string) => void;
   onCategoryColorChange: (category: string, color: string) => void;
   onCategoryNameChange?: (oldName: string, newName: string) => void;
+  showCompleted: boolean;
+  onShowCompletedToggle: () => void;
+  completedCount?: number;
 }
 
 export const FilterBar = ({
@@ -38,6 +42,9 @@ export const FilterBar = ({
   onDeleteCategory,
   onCategoryColorChange,
   onCategoryNameChange,
+  showCompleted,
+  onShowCompletedToggle,
+  completedCount = 0,
 }: FilterBarProps) => {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [isAddingCategory, setIsAddingCategory] = useState(false);
@@ -68,6 +75,15 @@ export const FilterBar = ({
             value={searchText}
             onChange={(e) => onSearchChange(e.target.value)}
             className="pl-9 h-9"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 px-3 py-2 rounded-md border bg-background/50 shadow-sm">
+          <span className="text-xs font-medium text-muted-foreground">완료({completedCount})</span>
+          <Switch
+            checked={showCompleted}
+            onCheckedChange={onShowCompletedToggle}
+            className="data-[state=checked]:bg-green-600"
           />
         </div>
 
@@ -127,9 +143,7 @@ export const FilterBar = ({
                       <Checkbox
                         id={`owner-${owner}`}
                         checked={selectedOwners.includes(owner)}
-                        onCheckedChange={() => onOwnerToggle(owner)}
-                        className="!rounded-none"
-                        onClick={(e) => e.stopPropagation()}
+                        className="!rounded-none pointer-events-none"
                       />
                       <label
                         htmlFor={`owner-${owner}`}

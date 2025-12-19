@@ -23,6 +23,9 @@ interface OverallSummaryProps {
   onDeleteCategory: (category: string) => void;
   onCategoryColorChange: (category: string, color: string) => void;
   onCategoryNameChange?: (oldName: string, newName: string) => void;
+  showCompleted: boolean;
+  onShowCompletedToggle: () => void;
+  completedCount: number;
 }
 
 export const OverallSummary = ({
@@ -42,7 +45,10 @@ export const OverallSummary = ({
   onAddCategory,
   onDeleteCategory,
   onCategoryColorChange,
-  onCategoryNameChange
+  onCategoryNameChange,
+  showCompleted,
+  onShowCompletedToggle,
+  completedCount
 }: OverallSummaryProps) => {
   const overallAverage = Math.round(
     goals.reduce((sum, goal) => sum + goal.progress, 0) / goals.length
@@ -173,6 +179,9 @@ export const OverallSummary = ({
           onDeleteCategory={onDeleteCategory}
           onCategoryColorChange={onCategoryColorChange}
           onCategoryNameChange={onCategoryNameChange}
+          showCompleted={showCompleted}
+          onShowCompletedToggle={onShowCompletedToggle}
+          completedCount={completedCount}
         />
       </div>
     </div>
