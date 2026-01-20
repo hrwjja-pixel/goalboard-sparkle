@@ -23,13 +23,29 @@ interface GoalDetailModalProps {
 
 export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete, categories = ['SERVICE', 'AI', 'OPERATIONS'] }: GoalDetailModalProps) => {
   const [editedGoal, setEditedGoal] = useState<Goal | null>(goal);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [isEditingStatusNote, setIsEditingStatusNote] = useState(false);
+  const [editingSubGoalStatusNotes, setEditingSubGoalStatusNotes] = useState<Set<string>>(new Set());
 
   // Update editedGoal when goal changes
   if (goal && editedGoal?.id !== goal.id) {
     setEditedGoal(goal);
+    setIsEditingDescription(false);
+    setIsEditingStatusNote(false);
+    setEditingSubGoalStatusNotes(new Set());
   }
 
   if (!editedGoal) return null;
+
+  const toggleSubGoalStatusNoteEdit = (subGoalId: string) => {
+    const newSet = new Set(editingSubGoalStatusNotes);
+    if (newSet.has(subGoalId)) {
+      newSet.delete(subGoalId);
+    } else {
+      newSet.add(subGoalId);
+    }
+    setEditingSubGoalStatusNotes(newSet);
+  };
 
   const handleSubGoalChange = (subGoalId: string, field: keyof SubGoal, value: any) => {
     const updatedSubGoals = editedGoal.subGoals?.map((sg) =>
@@ -155,12 +171,42 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete, categor
             </div>
 
             <div className="col-span-2">
-              <Label>설명</Label>
-              <Textarea
-                value={editedGoal.description || ''}
-                onChange={(e) => setEditedGoal({ ...editedGoal, description: e.target.value })}
-                rows={3}
-              />
+              <div className="flex justify-between items-center mb-2">
+                <Label>설명</Label>
+                <Button
+                  onClick={() => setIsEditingDescription(!isEditingDescription)}
+                  variant="ghost"
+                  size="sm"
+                  className="h-7"
+                >
+                  {isEditingDescription ? (
+                    <>
+                      <Save className="w-4 h-4 mr-1" />
+                      완료
+                    </>
+                  ) : (
+                    <>
+                      <Pencil className="w-4 h-4 mr-1" />
+                      편집
+                    </>
+                  )}
+                </Button>
+              </div>
+              {isEditingDescription ? (
+                <Textarea
+                  value={editedGoal.description || ''}
+                  onChange={(e) => setEditedGoal({ ...editedGoal, description: e.target.value })}
+                  rows={3}
+                />
+              ) : (
+                <div className="p-3 min-h-[80px] bg-muted rounded-md border text-sm">
+                  {editedGoal.description ? (
+                    <LinkifiedText text={editedGoal.description} />
+                  ) : (
+                    <span className="text-muted-foreground">설명이 없습니다</span>
+                  )}
+                </div>
+              )}
             </div>
 
             <div>
@@ -257,11 +303,41 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete, categor
             </div>
 
             <div className="col-span-2">
-              <Label>상태 메모</Label>
-              <Input
-                value={editedGoal.statusNote || ''}
-                onChange={(e) => setEditedGoal({ ...editedGoal, statusNote: e.target.value })}
-              />
+              <div className="flex justify-between items-center mb-2">
+                <Label>상태 메모</Label>
+                <Button
+                  onClick={() => setIsEditingStatusNote(!isEditingStatusNote)}
+                  variant="ghost"
+                  size="sm"
+                  className="h-7"
+                >
+                  {isEditingStatusNote ? (
+                    <>
+                      <Save className="w-4 h-4 mr-1" />
+                      완료
+                    </>
+                  ) : (
+                    <>
+                      <Pencil className="w-4 h-4 mr-1" />
+                      편집
+                    </>
+                  )}
+                </Button>
+              </div>
+              {isEditingStatusNote ? (
+                <Input
+                  value={editedGoal.statusNote || ''}
+                  onChange={(e) => setEditedGoal({ ...editedGoal, statusNote: e.target.value })}
+                />
+              ) : (
+                <div className="p-2 min-h-[40px] bg-muted rounded-md border text-sm flex items-center">
+                  {editedGoal.statusNote ? (
+                    <LinkifiedText text={editedGoal.statusNote} />
+                  ) : (
+                    <span className="text-muted-foreground">상태 메모가 없습니다</span>
+                  )}
+                </div>
+              )}
             </div>
 
             {!hasSubGoals && (
@@ -379,12 +455,42 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete, categor
                       </div>
 
                       <div className="col-span-2">
-                        <Label className="text-xs">상태 메모</Label>
-                        <Input
-                          value={subGoal.statusNote || ''}
-                          onChange={(e) => handleSubGoalChange(subGoal.id, 'statusNote', e.target.value)}
-                          className="mt-1"
-                        />
+                        <div className="flex justify-between items-center mb-1">
+                          <Label className="text-xs">상태 메모</Label>
+                          <Button
+                            onClick={() => toggleSubGoalStatusNoteEdit(subGoal.id)}
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 text-xs px-2"
+                          >
+                            {editingSubGoalStatusNotes.has(subGoal.id) ? (
+                              <>
+                                <Save className="w-3 h-3 mr-1" />
+                                완료
+                              </>
+                            ) : (
+                              <>
+                                <Pencil className="w-3 h-3 mr-1" />
+                                편집
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                        {editingSubGoalStatusNotes.has(subGoal.id) ? (
+                          <Input
+                            value={subGoal.statusNote || ''}
+                            onChange={(e) => handleSubGoalChange(subGoal.id, 'statusNote', e.target.value)}
+                            className="mt-1"
+                          />
+                        ) : (
+                          <div className="p-2 min-h-[38px] bg-background rounded-md border text-xs flex items-center">
+                            {subGoal.statusNote ? (
+                              <LinkifiedText text={subGoal.statusNote} />
+                            ) : (
+                              <span className="text-muted-foreground">상태 메모가 없습니다</span>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       <div className="col-span-3">
