@@ -13,8 +13,8 @@ REM 현재 날짜와 시간으로 백업 파일 이름 생성
 set timestamp=%date:~0,4%%date:~5,2%%date:~8,2%_%time:~0,2%%time:~3,2%%time:~6,2%
 set timestamp=%timestamp: =0%
 
-REM dev.db 백업
-copy dev.db "backups\dev_%timestamp%.db"
+REM prisma/dev.db 백업
+copy prisma\dev.db "backups\dev_%timestamp%.db"
 
 echo.
 echo 백업 완료: backups\dev_%timestamp%.db
