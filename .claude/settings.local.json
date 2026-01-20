@@ -40,7 +40,17 @@
       "Bash(sc query:*)",
       "Bash(find:*)",
       "Bash(git checkout:*)",
-      "Bash(tasklist:*)"
+      "Bash(tasklist:*)",
+      "Bash(dir /B)",
+      "Bash(ls:*)",
+      "Bash(rm:*)",
+      "Bash(timeout /t 3 /nobreak)",
+      "Bash(cmd.exe /c \"echo Y | backup-db.bat\")",
+      "Bash(copy prisma\\dev.db backups\\dev_test.db)",
+      "Bash(ren:*)",
+      "Bash(cat:*)",
+      "Bash(start http://localhost)",
+      "Bash(timeout:*)"
     ],
     "deny": [],
     "ask": []

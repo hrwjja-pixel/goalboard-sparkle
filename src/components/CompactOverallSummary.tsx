@@ -1,6 +1,6 @@
 import { Goal, GoalCategory } from '@/types/goal';
 import { Progress } from '@/components/ui/progress';
-import { TrendingUp, Plus, Maximize2, List, Minimize2, ChevronDown } from 'lucide-react';
+import { TrendingUp, Plus, Maximize2, List, Minimize2, ChevronDown, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -22,9 +22,26 @@ interface CompactOverallSummaryProps {
   showCompleted: boolean;
   onShowCompletedToggle: () => void;
   completedCount: number;
+  dashboardTitle?: string;
+  dashboardSubtitle?: string;
+  onSettingsClick?: () => void;
 }
 
-export const CompactOverallSummary = ({ goals, onAddGoal, viewMode = 'compact', onViewModeChange, categoryColors, selectedCategories, onCategoryToggle, showCompleted, onShowCompletedToggle, completedCount }: CompactOverallSummaryProps) => {
+export const CompactOverallSummary = ({
+  goals,
+  onAddGoal,
+  viewMode = 'compact',
+  onViewModeChange,
+  categoryColors,
+  selectedCategories,
+  onCategoryToggle,
+  showCompleted,
+  onShowCompletedToggle,
+  completedCount,
+  dashboardTitle = 'WEHAGO H 목표 대시보드',
+  dashboardSubtitle = 'EMR개발본부 > WEHAGO H 개발센터',
+  onSettingsClick
+}: CompactOverallSummaryProps) => {
   // Filter goals based on showCompleted toggle
   const displayGoals = showCompleted ? goals : goals.filter(g => !g.completed);
 
@@ -51,7 +68,7 @@ export const CompactOverallSummary = ({ goals, onAddGoal, viewMode = 'compact', 
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-4">
           <div>
-            <h2 className="text-lg font-bold mb-1">WEHAGO H 목표 대시보드</h2>
+            <h2 className="text-lg font-bold mb-1">{dashboardTitle}</h2>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-primary" />
@@ -142,6 +159,11 @@ export const CompactOverallSummary = ({ goals, onAddGoal, viewMode = 'compact', 
             <Plus className="w-4 h-4 mr-2" />
             새 목표
           </Button>
+          {onSettingsClick && (
+            <Button onClick={onSettingsClick} size="sm" variant="outline" className="shadow-md">
+              <Settings className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </div>
       <Progress value={overallAverage} className="h-1.5" />

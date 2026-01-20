@@ -144,4 +144,21 @@ export const api = {
     if (!response.ok) throw new Error('Failed to toggle goal completion');
     return response.json();
   },
+
+  // Settings
+  async getSettings(): Promise<{ dashboardTitle: string; dashboardSubtitle: string }> {
+    const response = await fetch(`${API_BASE_URL}/api/settings`);
+    if (!response.ok) throw new Error('Failed to fetch settings');
+    return response.json();
+  },
+
+  async updateSettings(settings: { dashboardTitle?: string; dashboardSubtitle?: string }): Promise<Record<string, string>> {
+    const response = await fetch(`${API_BASE_URL}/api/settings`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(settings),
+    });
+    if (!response.ok) throw new Error('Failed to update settings');
+    return response.json();
+  },
 };

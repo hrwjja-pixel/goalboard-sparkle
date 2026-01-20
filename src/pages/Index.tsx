@@ -8,6 +8,7 @@ import { CompactGoalCard } from '@/components/CompactGoalCard';
 import { ListView } from '@/components/ListView';
 import { GoalDetailModal } from '@/components/GoalDetailModal';
 import { AddGoalModal } from '@/components/AddGoalModal';
+import { SettingsDialog } from '@/components/SettingsDialog';
 import { Button } from '@/components/ui/button';
 import { Plus, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,6 +53,9 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'normal' | 'compact' | 'list'>('compact');
   const [showCompleted, setShowCompleted] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [dashboardTitle, setDashboardTitle] = useState('WEHAGO H 목표 대시보드');
+  const [dashboardSubtitle, setDashboardSubtitle] = useState('EMR개발본부 > WEHAGO H 개발센터');
   const [completedCount, setCompletedCount] = useState(0);
 
   const sensors = useSensors(
@@ -67,8 +71,13 @@ const Index = () => {
       try {
         setIsLoading(true);
 
-        // Load categories
-        const categoriesData = await api.getCategories();
+        // Load categories, goals, and settings
+        const [categoriesData, allGoalsData, settings] = await Promise.all([
+          api.getCategories(),
+          api.getGoals(true),
+          api.getSettings(),
+        ]);
+
         const categoryNames = categoriesData.map((c) => c.name);
         const colors: Record<string, string> = {};
         const ids: Record<string, string> = {};
@@ -84,10 +93,13 @@ const Index = () => {
         setCategoryIds(ids);
 
         // Load all goals (always load all, filtering will be done client-side)
-        const allGoalsData = await api.getGoals(true);
         const completed = allGoalsData.filter(g => g.completed).length;
         setCompletedCount(completed);
         setGoals(allGoalsData);
+
+        // Load settings
+        setDashboardTitle(settings.dashboardTitle);
+        setDashboardSubtitle(settings.dashboardSubtitle);
       } catch (error) {
         console.error('Failed to load data:', error);
         // Fallback to default data
@@ -357,6 +369,17 @@ const Index = () => {
     }
   };
 
+  const handleSaveSettings = async (settings: { dashboardTitle: string; dashboardSubtitle: string }) => {
+    try {
+      await api.updateSettings(settings);
+      setDashboardTitle(settings.dashboardTitle);
+      setDashboardSubtitle(settings.dashboardSubtitle);
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      alert('설정 저장에 실패했습니다.');
+    }
+  };
+
   const handleCardClick = async (goal: Goal) => {
     // Clear previous selection first
     setSelectedGoal(null);
@@ -447,6 +470,9 @@ const Index = () => {
             showCompleted={showCompleted}
             onShowCompletedToggle={() => setShowCompleted(!showCompleted)}
             completedCount={completedCount}
+            dashboardTitle={dashboardTitle}
+            dashboardSubtitle={dashboardSubtitle}
+            onSettingsClick={() => setIsSettingsOpen(true)}
           />
         ) : (
           <CompactOverallSummary
@@ -460,6 +486,9 @@ const Index = () => {
             showCompleted={showCompleted}
             onShowCompletedToggle={() => setShowCompleted(!showCompleted)}
             completedCount={completedCount}
+            dashboardTitle={dashboardTitle}
+            dashboardSubtitle={dashboardSubtitle}
+            onSettingsClick={() => setIsSettingsOpen(true)}
           />
         )}
 
@@ -536,6 +565,14 @@ const Index = () => {
         onClose={() => setIsAddModalOpen(false)}
         onAdd={handleAddGoal}
         categories={categories}
+      />
+
+      <SettingsDialog
+        open={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        onSave={handleSaveSettings}
+        currentTitle={dashboardTitle}
+        currentSubtitle={dashboardSubtitle}
       />
     </div>
   );

@@ -589,6 +589,70 @@ if (process.env.NODE_ENV === 'production' || Number(PORT) === 80) {
   });
 }
 
+// Settings endpoints
+app.get('/api/settings', async (req: Request, res: Response) => {
+  try {
+    const settings = await prisma.setting.findMany();
+    const settingsObj = settings.reduce((acc, setting) => {
+      acc[setting.key] = setting.value;
+      return acc;
+    }, {} as Record<string, string>);
+
+    // Set defaults if not found
+    const defaults = {
+      dashboardTitle: process.env.DASHBOARD_TITLE || 'WEHAGO H 목표 대시보드',
+      dashboardSubtitle: process.env.DASHBOARD_SUBTITLE || 'EMR개발본부 > WEHAGO H 개발센터',
+    };
+
+    res.json({ ...defaults, ...settingsObj });
+  } catch (error) {
+    console.error('Error fetching settings:', error);
+    res.status(500).json({ error: 'Failed to fetch settings' });
+  }
+});
+
+app.put('/api/settings', async (req: AuthRequest, res: Response) => {
+  try {
+    const { dashboardTitle, dashboardSubtitle } = req.body;
+
+    if (dashboardTitle !== undefined) {
+      await prisma.setting.upsert({
+        where: { key: 'dashboardTitle' },
+        update: { value: dashboardTitle },
+        create: { key: 'dashboardTitle', value: dashboardTitle },
+      });
+    }
+
+    if (dashboardSubtitle !== undefined) {
+      await prisma.setting.upsert({
+        where: { key: 'dashboardSubtitle' },
+        update: { value: dashboardSubtitle },
+        create: { key: 'dashboardSubtitle', value: dashboardSubtitle },
+      });
+    }
+
+    // Audit log
+    await (req as any).audit?.({
+      action: 'UPDATE',
+      entityType: 'Setting',
+      entityId: 'dashboard',
+      entityTitle: 'Dashboard Settings',
+      changes: JSON.stringify({ dashboardTitle, dashboardSubtitle }),
+    });
+
+    const settings = await prisma.setting.findMany();
+    const settingsObj = settings.reduce((acc, setting) => {
+      acc[setting.key] = setting.value;
+      return acc;
+    }, {} as Record<string, string>);
+
+    res.json(settingsObj);
+  } catch (error) {
+    console.error('Error updating settings:', error);
+    res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
   console.log(`Also accessible at http://localhost:${PORT}`);

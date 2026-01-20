@@ -1,6 +1,6 @@
 import { Goal, GoalCategory } from '@/types/goal';
 import { Progress } from '@/components/ui/progress';
-import { TrendingUp, Plus, Minimize2, List, Maximize2, ChevronDown } from 'lucide-react';
+import { TrendingUp, Plus, Minimize2, List, Maximize2, ChevronDown, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { FilterBar } from '@/components/FilterBar';
@@ -33,6 +33,9 @@ interface OverallSummaryProps {
   showCompleted: boolean;
   onShowCompletedToggle: () => void;
   completedCount: number;
+  dashboardTitle?: string;
+  dashboardSubtitle?: string;
+  onSettingsClick?: () => void;
 }
 
 export const OverallSummary = ({
@@ -56,7 +59,10 @@ export const OverallSummary = ({
   onCategoryNameChange,
   showCompleted,
   onShowCompletedToggle,
-  completedCount
+  completedCount,
+  dashboardTitle = 'WEHAGO H 목표 대시보드',
+  dashboardSubtitle = 'EMR개발본부 > WEHAGO H 개발센터',
+  onSettingsClick
 }: OverallSummaryProps) => {
   // Filter goals based on showCompleted toggle
   const displayGoals = showCompleted ? goals : goals.filter(g => !g.completed);
@@ -91,8 +97,8 @@ export const OverallSummary = ({
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-10">
           <div>
-            <h2 className="text-2xl font-bold mb-1">WEHAGO H 목표 대시보드</h2>
-            <p className="text-sm text-muted-foreground">EMR개발본부 &gt; WEHAGO H 개발센터</p>
+            <h2 className="text-2xl font-bold mb-1">{dashboardTitle}</h2>
+            <p className="text-sm text-muted-foreground">{dashboardSubtitle}</p>
           </div>
           {Object.keys(categoryStats).length > 0 && (
             <div className="flex flex-wrap gap-2">
@@ -166,6 +172,11 @@ export const OverallSummary = ({
             <Plus className="w-4 h-4 mr-2" />
             새 목표 추가
           </Button>
+          {onSettingsClick && (
+            <Button onClick={onSettingsClick} size="default" variant="outline" className="shadow-md">
+              <Settings className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </div>
 
