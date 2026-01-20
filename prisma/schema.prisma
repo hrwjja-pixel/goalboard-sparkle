@@ -32,6 +32,7 @@ model Goal {
   statusNote  String?
   order       Int        @default(0)
   completed   Boolean    @default(false)
+  version     Int        @default(0)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   subGoals    SubGoal[]
@@ -51,6 +52,7 @@ model SubGoal {
   statusNote  String?
   goalId      String
   goal        Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  version     Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -63,6 +65,7 @@ model Note {
   isPinned  Boolean  @default(false)
   goalId    String
   goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  version   Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

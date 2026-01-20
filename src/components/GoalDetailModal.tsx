@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Slider } from '@/components/ui/slider';
 import { Trash2, Plus, Maximize2, StickyNote, Pin, ChevronUp, ChevronDown, Pencil, Save, X } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { LinkifiedText } from '@/components/LinkifiedText';
 import { v4 as uuidv4 } from 'uuid';
@@ -28,12 +28,15 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete, categor
   const [editingSubGoalStatusNotes, setEditingSubGoalStatusNotes] = useState<Set<string>>(new Set());
 
   // Update editedGoal when goal changes
-  if (goal && editedGoal?.id !== goal.id) {
-    setEditedGoal(goal);
-    setIsEditingDescription(false);
-    setIsEditingStatusNote(false);
-    setEditingSubGoalStatusNotes(new Set());
-  }
+  useEffect(() => {
+    if (goal) {
+      console.log('GoalDetailModal: Updating with new goal data', goal);
+      setEditedGoal(goal);
+      setIsEditingDescription(false);
+      setIsEditingStatusNote(false);
+      setEditingSubGoalStatusNotes(new Set());
+    }
+  }, [goal]);
 
   if (!editedGoal) return null;
 

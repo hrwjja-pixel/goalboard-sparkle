@@ -17,6 +17,26 @@ const svc = new Service({
     {
       name: "PORT",
       value: "80"
+    },
+    {
+      name: "DATABASE_URL",
+      value: "file:" + path.join(__dirname, 'prisma', 'dev.db').replace(/\\/g, '/')
+    },
+    {
+      name: "GOOGLE_CLIENT_ID",
+      value: "dummy_client_id"
+    },
+    {
+      name: "GOOGLE_CLIENT_SECRET",
+      value: "dummy_client_secret"
+    },
+    {
+      name: "GOOGLE_CALLBACK_URL",
+      value: "http://localhost/api/auth/google/callback"
+    },
+    {
+      name: "SESSION_SECRET",
+      value: "your-secret-key-here"
     }
   ]
 });

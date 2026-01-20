@@ -183,13 +183,46 @@ const Index = () => {
 
   const handleSaveGoal = async (updatedGoal: Goal) => {
     try {
+      console.log('Saving goal with version:', updatedGoal.version);
       await api.updateGoal(updatedGoal.id, updatedGoal);
-      setGoals((prev) =>
-        prev.map((g) => (g.id === updatedGoal.id ? updatedGoal : g))
-      );
-    } catch (error) {
+
+      // Close the modal
+      setSelectedGoal(null);
+
+      // Always refresh all goals after save to ensure all users see latest data
+      const allGoalsData = await api.getGoals(showCompleted);
+      const completed = await api.getGoals(true);
+      setCompletedCount(completed.filter(g => g.completed).length);
+      setGoals(allGoalsData);
+    } catch (error: any) {
       console.error('Failed to save goal:', error);
+      console.error('Error response:', error.response);
+      console.error('Error status:', error.response?.status);
+
+      // Handle conflict (409)
+      if (error.response?.status === 409) {
+        const shouldReload = confirm(
+          '다른 사용자가 이 목표를 수정했습니다.\n' +
+          '현재 화면을 새로고침하여 최신 데이터를 불러오시겠습니까?\n\n' +
+          '"확인"을 누르면 새로고침되며, 작성 중인 내용은 손실됩니다.'
+        );
+
+        if (shouldReload) {
+          // Close the modal
+          setSelectedGoal(null);
+
+          // Reload all goals to get the latest data
+          const allGoalsData = await api.getGoals(showCompleted);
+          const completed = await api.getGoals(true);
+          setCompletedCount(completed.filter(g => g.completed).length);
+          setGoals(allGoalsData);
+        }
+
+        throw new Error('목표가 다른 사용자에 의해 수정되었습니다.');
+      }
+
       alert('목표 저장에 실패했습니다.');
+      throw error;
     }
   };
 
@@ -324,9 +357,28 @@ const Index = () => {
     }
   };
 
-  const handleCardClick = (goal: Goal) => {
-    setSelectedGoal(goal);
+  const handleCardClick = async (goal: Goal) => {
+    // Clear previous selection first
+    setSelectedGoal(null);
     setIsDetailModalOpen(true);
+
+    try {
+      // Fetch latest data from server
+      console.log('Fetching latest goal data for:', goal.id);
+      const latestGoal = await api.getGoal(goal.id);
+      console.log('Received latest goal:', latestGoal);
+
+      // Update the goal in the list as well
+      setGoals((prev) =>
+        prev.map((g) => (g.id === latestGoal.id ? latestGoal : g))
+      );
+
+      setSelectedGoal(latestGoal);
+    } catch (error) {
+      console.error('Failed to fetch goal details:', error);
+      // Fallback to cached data
+      setSelectedGoal(goal);
+    }
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -403,6 +455,8 @@ const Index = () => {
             viewMode={viewMode}
             onViewModeChange={setViewMode}
             categoryColors={categoryColors}
+            selectedCategories={selectedCategories}
+            onCategoryToggle={handleCategoryToggle}
             showCompleted={showCompleted}
             onShowCompletedToggle={() => setShowCompleted(!showCompleted)}
             completedCount={completedCount}
@@ -411,7 +465,7 @@ const Index = () => {
 
         {viewMode === 'list' ? (
           <ListView
-            goals={goals}
+            goals={filteredGoals}
             categoryColors={categoryColors}
             onGoalClick={handleCardClick}
             onToggleComplete={handleToggleComplete}

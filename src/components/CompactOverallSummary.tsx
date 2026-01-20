@@ -1,4 +1,4 @@
-import { Goal } from '@/types/goal';
+import { Goal, GoalCategory } from '@/types/goal';
 import { Progress } from '@/components/ui/progress';
 import { TrendingUp, Plus, Maximize2, List, Minimize2, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,18 +17,23 @@ interface CompactOverallSummaryProps {
   viewMode?: 'normal' | 'compact' | 'list';
   onViewModeChange?: (mode: 'normal' | 'compact' | 'list') => void;
   categoryColors?: Record<string, string>;
+  selectedCategories: GoalCategory[];
+  onCategoryToggle: (category: GoalCategory) => void;
   showCompleted: boolean;
   onShowCompletedToggle: () => void;
   completedCount: number;
 }
 
-export const CompactOverallSummary = ({ goals, onAddGoal, viewMode = 'compact', onViewModeChange, categoryColors, showCompleted, onShowCompletedToggle, completedCount }: CompactOverallSummaryProps) => {
-  const overallAverage = goals.length > 0
-    ? Math.round(goals.reduce((sum, goal) => sum + goal.progress, 0) / goals.length)
+export const CompactOverallSummary = ({ goals, onAddGoal, viewMode = 'compact', onViewModeChange, categoryColors, selectedCategories, onCategoryToggle, showCompleted, onShowCompletedToggle, completedCount }: CompactOverallSummaryProps) => {
+  // Filter goals based on showCompleted toggle
+  const displayGoals = showCompleted ? goals : goals.filter(g => !g.completed);
+
+  const overallAverage = displayGoals.length > 0
+    ? Math.round(displayGoals.reduce((sum, goal) => sum + goal.progress, 0) / displayGoals.length)
     : 0;
 
-  // Calculate category statistics
-  const categoryStats = goals.reduce((acc, goal) => {
+  // Calculate category statistics based on showCompleted toggle
+  const categoryStats = displayGoals.reduce((acc, goal) => {
     if (goal.categories && goal.categories.length > 0) {
       goal.categories.forEach((category) => {
         if (!acc[category]) {
@@ -55,7 +60,7 @@ export const CompactOverallSummary = ({ goals, onAddGoal, viewMode = 'compact', 
                 </span>
               </div>
               <div className="text-sm text-muted-foreground">
-                총 {goals.length}개 목표
+                총 {displayGoals.length}개 목표
               </div>
             </div>
           </div>
@@ -66,14 +71,17 @@ export const CompactOverallSummary = ({ goals, onAddGoal, viewMode = 'compact', 
               {Object.entries(categoryStats).map(([category, stats]) => {
                 const color = categoryColors?.[category] || '#6b7280';
                 const avgProgress = Math.round(stats.totalProgress / stats.count);
+                const isSelected = selectedCategories.includes(category);
 
                 return (
                   <div
                     key={category}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border transition-all"
+                    onClick={() => onCategoryToggle(category)}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border transition-all cursor-pointer hover:shadow-md"
                     style={{
-                      backgroundColor: `${color}10`,
-                      borderColor: `${color}40`,
+                      backgroundColor: isSelected ? `${color}20` : `${color}10`,
+                      borderColor: isSelected ? `${color}80` : `${color}40`,
+                      opacity: isSelected ? 1 : 0.7,
                     }}
                   >
                     <Badge

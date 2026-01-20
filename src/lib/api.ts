@@ -89,6 +89,12 @@ export const api = {
     return response.json();
   },
 
+  async getGoal(id: string): Promise<Goal> {
+    const response = await fetch(`${API_BASE_URL}/api/goals/${id}`);
+    if (!response.ok) throw new Error('Failed to fetch goal');
+    return response.json();
+  },
+
   async createGoal(goal: Goal): Promise<Goal> {
     const response = await fetch(`${API_BASE_URL}/api/goals`, {
       method: 'POST',
@@ -105,7 +111,11 @@ export const api = {
       headers: getAuthHeaders(),
       body: JSON.stringify(goal),
     });
-    if (!response.ok) throw new Error('Failed to update goal');
+    if (!response.ok) {
+      const error: any = new Error('Failed to update goal');
+      error.response = { status: response.status, data: await response.json() };
+      throw error;
+    }
     return response.json();
   },
 

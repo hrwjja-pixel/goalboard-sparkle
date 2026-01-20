@@ -58,18 +58,21 @@ export const OverallSummary = ({
   onShowCompletedToggle,
   completedCount
 }: OverallSummaryProps) => {
-  const overallAverage = Math.round(
-    goals.reduce((sum, goal) => sum + goal.progress, 0) / goals.length
-  );
-  
+  // Filter goals based on showCompleted toggle
+  const displayGoals = showCompleted ? goals : goals.filter(g => !g.completed);
+
+  const overallAverage = displayGoals.length > 0
+    ? Math.round(displayGoals.reduce((sum, goal) => sum + goal.progress, 0) / displayGoals.length)
+    : 0;
+
   const filteredAverage = filteredGoals.length > 0
     ? Math.round(
         filteredGoals.reduce((sum, goal) => sum + goal.progress, 0) / filteredGoals.length
       )
     : 0;
 
-  // Calculate category statistics
-  const categoryStats = goals.reduce((acc, goal) => {
+  // Calculate category statistics based on showCompleted toggle
+  const categoryStats = displayGoals.reduce((acc, goal) => {
     // Handle multiple categories per goal
     if (goal.categories && goal.categories.length > 0) {
       goal.categories.forEach((category) => {
@@ -97,13 +100,17 @@ export const OverallSummary = ({
                 const color = categoryColors?.[category] || '#6b7280';
                 const avgProgress = Math.round(stats.totalProgress / stats.count);
 
+                const isSelected = selectedCategories.includes(category);
+
                 return (
                   <div
                     key={category}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 transition-all"
+                    onClick={() => onCategoryToggle(category)}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 transition-all cursor-pointer hover:shadow-md"
                     style={{
-                      backgroundColor: `${color}10`,
-                      borderColor: `${color}40`,
+                      backgroundColor: isSelected ? `${color}20` : `${color}10`,
+                      borderColor: isSelected ? `${color}80` : `${color}40`,
+                      opacity: isSelected ? 1 : 0.7,
                     }}
                   >
                     <Badge

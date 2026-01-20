@@ -7,6 +7,7 @@ export interface Note {
   createdAt: string;
   updatedAt?: string;
   isPinned: boolean;
+  version?: number;
 }
 
 export interface SubGoal {
@@ -18,6 +19,7 @@ export interface SubGoal {
   startDate?: string;
   dueDate?: string;
   statusNote?: string;
+  version?: number;
 }
 
 export interface Goal {
@@ -35,4 +37,5 @@ export interface Goal {
   notes?: Note[]; // 메모 히스토리
   order?: number; // 드래그 앤 드롭 순서
   completed?: boolean; // 완료 여부
+  version?: number; // 낙관적 잠금을 위한 버전
 }
