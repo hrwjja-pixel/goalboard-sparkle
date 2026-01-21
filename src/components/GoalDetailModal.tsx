@@ -727,9 +727,9 @@ const AttachmentSection = ({
 
     const file = files[0];
 
-    // Validate file size (10MB limit)
-    if (file.size > 10 * 1024 * 1024) {
-      setUploadError('파일 크기는 10MB를 초과할 수 없습니다.');
+    // Validate file size (50MB limit)
+    if (file.size > 50 * 1024 * 1024) {
+      setUploadError('파일 크기는 50MB를 초과할 수 없습니다.');
       return;
     }
 
@@ -797,7 +797,7 @@ const AttachmentSection = ({
           disabled={isUploading}
         />
         <span className="text-xs text-muted-foreground">
-          최대 10MB
+          최대 50MB
         </span>
       </div>
 
