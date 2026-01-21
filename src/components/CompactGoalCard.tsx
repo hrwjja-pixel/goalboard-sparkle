@@ -20,8 +20,8 @@ interface CompactGoalCardProps {
   onToggleComplete?: (goalId: string, completed: boolean) => void;
 }
 
-// Helper function to blend color with white for opaque background
-const blendWithWhite = (hexColor: string, opacity: number): string => {
+// Helper function to blend color with background for opaque background
+const blendWithBackground = (hexColor: string, opacity: number): string => {
   // Remove # if present
   const hex = hexColor.replace('#', '');
 
@@ -30,10 +30,17 @@ const blendWithWhite = (hexColor: string, opacity: number): string => {
   const g = parseInt(hex.substring(2, 4), 16);
   const b = parseInt(hex.substring(4, 6), 16);
 
-  // Blend with white (255, 255, 255)
-  const blendedR = Math.round(r * opacity + 255 * (1 - opacity));
-  const blendedG = Math.round(g * opacity + 255 * (1 - opacity));
-  const blendedB = Math.round(b * opacity + 255 * (1 - opacity));
+  // Check if dark mode (check if html has 'dark' class)
+  const isDark = document.documentElement.classList.contains('dark');
+
+  // Blend with white (255, 255, 255) for light mode or black (0, 0, 0) for dark mode
+  const baseR = isDark ? 0 : 255;
+  const baseG = isDark ? 0 : 255;
+  const baseB = isDark ? 0 : 255;
+
+  const blendedR = Math.round(r * opacity + baseR * (1 - opacity));
+  const blendedG = Math.round(g * opacity + baseG * (1 - opacity));
+  const blendedB = Math.round(b * opacity + baseB * (1 - opacity));
 
   // Convert back to hex
   const toHex = (n: number) => n.toString(16).padStart(2, '0');
@@ -238,7 +245,7 @@ export const CompactGoalCard = ({ goal, onClick, categoryColors, onToggleComplet
         align="start"
         style={{
           backgroundColor: categoryColors?.[primaryCategory]
-            ? blendWithWhite(categoryColors[primaryCategory], 0.06)  // 원래 카드와 같은 투명도 효과
+            ? blendWithBackground(categoryColors[primaryCategory], 0.06)  // 다크모드 지원: 검은색/흰색과 블렌딩
             : 'var(--card)',
           borderColor: categoryColors?.[primaryCategory] || categoryStyle.style?.borderColor,
           borderWidth: '2px',
