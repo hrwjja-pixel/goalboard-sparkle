@@ -9,10 +9,41 @@ import authRoutes from './routes/auth';
 import { optionalAuth, AuthRequest } from './middleware/auth';
 import { attachAuditLog } from './middleware/audit';
 import path from 'path';
+import multer from 'multer';
+import fs from 'fs';
 
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, '..', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Multer configuration for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename: timestamp-randomstring-originalname
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + '-' + file.originalname);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept all file types for now
+    cb(null, true);
+  }
+});
 
 // Setup Passport
 setupPassport();
@@ -143,6 +174,9 @@ app.get('/api/goals', async (req: Request, res: Response) => {
         notes: {
           orderBy: { createdAt: 'desc' },
         },
+        attachments: {
+          orderBy: { createdAt: 'desc' },
+        },
       },
       orderBy: { order: 'asc' },
     });
@@ -164,6 +198,7 @@ app.get('/api/goals', async (req: Request, res: Response) => {
       version: goal.version,
       subGoals: goal.subGoals,
       notes: goal.notes,
+      attachments: goal.attachments,
     }));
 
     res.json(transformedGoals);
@@ -186,6 +221,9 @@ app.get('/api/goals/:id', async (req: Request, res: Response) => {
           orderBy: { createdAt: 'asc' },
         },
         notes: {
+          orderBy: { createdAt: 'desc' },
+        },
+        attachments: {
           orderBy: { createdAt: 'desc' },
         },
       },
@@ -212,6 +250,7 @@ app.get('/api/goals/:id', async (req: Request, res: Response) => {
       version: goal.version,
       subGoals: goal.subGoals,
       notes: goal.notes,
+      attachments: goal.attachments,
     };
 
     res.json(transformedGoal);
@@ -223,7 +262,7 @@ app.get('/api/goals/:id', async (req: Request, res: Response) => {
 
 app.post('/api/goals', async (req: AuthRequest, res: Response) => {
   try {
-    const { categories, subGoals, notes, ...goalData } = req.body;
+    const { categories, subGoals, notes, attachments, ...goalData } = req.body;
 
     // Validate categories (1-5 required)
     if (!categories || !Array.isArray(categories) || categories.length < 1 || categories.length > 5) {
@@ -357,8 +396,9 @@ app.put('/api/goals/:id/complete', async (req: AuthRequest, res: Response) => {
       },
       include: {
         categories: true,
-        subGoals: true,
-        notes: true,
+        subGoals: { orderBy: { createdAt: 'asc' } },
+        notes: { orderBy: { createdAt: 'desc' } },
+        attachments: { orderBy: { createdAt: 'desc' } },
       },
     });
 
@@ -384,7 +424,7 @@ app.put('/api/goals/:id/complete', async (req: AuthRequest, res: Response) => {
 app.put('/api/goals/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { categories, subGoals, notes, version, ...goalData } = req.body;
+    const { categories, subGoals, notes, attachments, version, ...goalData } = req.body;
 
     // Validate categories (1-5 required)
     if (!categories || !Array.isArray(categories) || categories.length < 1 || categories.length > 5) {
@@ -601,6 +641,133 @@ if (process.env.NODE_ENV === 'production' || Number(PORT) === 80) {
     res.sendFile(path.join(distPath, 'index.html'));
   });
 }
+
+// Attachment endpoints
+
+// Upload file to a goal
+app.post('/api/goals/:id/attachments', upload.single('file'), async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    // Check if goal exists
+    const goal = await prisma.goal.findUnique({ where: { id } });
+    if (!goal) {
+      // Clean up uploaded file
+      fs.unlinkSync(file.path);
+      return res.status(404).json({ error: 'Goal not found' });
+    }
+
+    // Create attachment record
+    const attachment = await prisma.attachment.create({
+      data: {
+        fileName: file.filename,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+        goalId: id,
+      },
+    });
+
+    // Audit log
+    await (req as any).audit?.({
+      action: 'CREATE',
+      entityType: 'Attachment',
+      entityId: attachment.id,
+      entityTitle: file.originalname,
+    });
+
+    res.json(attachment);
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    // Clean up file if database operation failed
+    if (req.file) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (cleanupError) {
+        console.error('Error cleaning up file:', cleanupError);
+      }
+    }
+    res.status(500).json({ error: 'Failed to upload file' });
+  }
+});
+
+// Get attachments for a goal
+app.get('/api/goals/:id/attachments', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const attachments = await prisma.attachment.findMany({
+      where: { goalId: id },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(attachments);
+  } catch (error) {
+    console.error('Error fetching attachments:', error);
+    res.status(500).json({ error: 'Failed to fetch attachments' });
+  }
+});
+
+// Download an attachment
+app.get('/api/attachments/:id/download', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const attachment = await prisma.attachment.findUnique({ where: { id } });
+    if (!attachment) {
+      return res.status(404).json({ error: 'Attachment not found' });
+    }
+
+    const filePath = path.join(uploadsDir, attachment.fileName);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'File not found on disk' });
+    }
+
+    res.download(filePath, attachment.originalName);
+  } catch (error) {
+    console.error('Error downloading file:', error);
+    res.status(500).json({ error: 'Failed to download file' });
+  }
+});
+
+// Delete an attachment
+app.delete('/api/attachments/:id', async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const attachment = await prisma.attachment.findUnique({ where: { id } });
+    if (!attachment) {
+      return res.status(404).json({ error: 'Attachment not found' });
+    }
+
+    // Delete file from disk
+    const filePath = path.join(uploadsDir, attachment.fileName);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    // Delete database record
+    await prisma.attachment.delete({ where: { id } });
+
+    // Audit log
+    await (req as any).audit?.({
+      action: 'DELETE',
+      entityType: 'Attachment',
+      entityId: id,
+      entityTitle: attachment.originalName,
+    });
+
+    res.json({ message: 'Attachment deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting attachment:', error);
+    res.status(500).json({ error: 'Failed to delete attachment' });
+  }
+});
 
 // Settings endpoints
 app.get('/api/settings', async (req: Request, res: Response) => {

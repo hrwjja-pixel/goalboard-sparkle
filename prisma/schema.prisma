@@ -20,23 +20,24 @@ model Category {
 }
 
 model Goal {
-  id          String     @id @default(uuid())
+  id          String       @id @default(uuid())
   title       String
   description String?
   owner       String
   categories  Category[]
-  progress    Int        @default(0)
-  size        String     @default("medium")
+  progress    Int          @default(0)
+  size        String       @default("medium")
   startDate   String?
   dueDate     String?
   statusNote  String?
-  order       Int        @default(0)
-  completed   Boolean    @default(false)
-  version     Int        @default(0)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  order       Int          @default(0)
+  completed   Boolean      @default(false)
+  version     Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
   subGoals    SubGoal[]
   notes       Note[]
+  attachments Attachment[]
 
   @@index([owner])
 }
@@ -110,4 +111,18 @@ model Setting {
   updatedAt DateTime @updatedAt
 
   @@index([key])
+}
+
+model Attachment {
+  id           String   @id @default(uuid())
+  fileName     String   // Stored file name (with unique identifier)
+  originalName String   // Original file name from user
+  mimeType     String   // MIME type (e.g., application/pdf, image/png)
+  size         Int      // File size in bytes
+  goalId       String
+  goal         Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([goalId])
 }

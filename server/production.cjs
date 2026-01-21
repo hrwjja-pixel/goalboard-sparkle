@@ -4027,9 +4027,34 @@ function attachAuditLog(req, res, next) {
 
 // server/index.ts
 var import_path = __toESM(require("path"), 1);
+var import_multer = __toESM(require("multer"), 1);
+var import_fs = __toESM(require("fs"), 1);
 var app = (0, import_express2.default)();
 var prisma3 = new import_client3.PrismaClient();
 var PORT = process.env.PORT || 3001;
+var uploadsDir = import_path.default.join(__dirname, "..", "uploads");
+if (!import_fs.default.existsSync(uploadsDir)) {
+  import_fs.default.mkdirSync(uploadsDir, { recursive: true });
+}
+var storage = import_multer.default.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + "-" + file.originalname);
+  }
+});
+var upload = (0, import_multer.default)({
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024
+    // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    cb(null, true);
+  }
+});
 setupPassport();
 app.use((0, import_cors.default)());
 app.use(import_express2.default.json());
@@ -4129,6 +4154,9 @@ app.get("/api/goals", async (req, res) => {
         },
         notes: {
           orderBy: { createdAt: "desc" }
+        },
+        attachments: {
+          orderBy: { createdAt: "desc" }
         }
       },
       orderBy: { order: "asc" }
@@ -4148,7 +4176,8 @@ app.get("/api/goals", async (req, res) => {
       completed: goal.completed,
       version: goal.version,
       subGoals: goal.subGoals,
-      notes: goal.notes
+      notes: goal.notes,
+      attachments: goal.attachments
     }));
     res.json(transformedGoals);
   } catch (error) {
@@ -4167,6 +4196,9 @@ app.get("/api/goals/:id", async (req, res) => {
           orderBy: { createdAt: "asc" }
         },
         notes: {
+          orderBy: { createdAt: "desc" }
+        },
+        attachments: {
           orderBy: { createdAt: "desc" }
         }
       }
@@ -4189,7 +4221,8 @@ app.get("/api/goals/:id", async (req, res) => {
       completed: goal.completed,
       version: goal.version,
       subGoals: goal.subGoals,
-      notes: goal.notes
+      notes: goal.notes,
+      attachments: goal.attachments
     };
     res.json(transformedGoal);
   } catch (error) {
@@ -4199,7 +4232,7 @@ app.get("/api/goals/:id", async (req, res) => {
 });
 app.post("/api/goals", async (req, res) => {
   try {
-    const { categories, subGoals, notes, ...goalData } = req.body;
+    const { categories, subGoals, notes, attachments, ...goalData } = req.body;
     if (!categories || !Array.isArray(categories) || categories.length < 1 || categories.length > 5) {
       return res.status(400).json({ error: "Must provide 1-5 categories" });
     }
@@ -4329,7 +4362,7 @@ app.put("/api/goals/:id/complete", async (req, res) => {
 app.put("/api/goals/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { categories, subGoals, notes, version, ...goalData } = req.body;
+    const { categories, subGoals, notes, attachments, version, ...goalData } = req.body;
     if (!categories || !Array.isArray(categories) || categories.length < 1 || categories.length > 5) {
       return res.status(400).json({ error: "Must provide 1-5 categories" });
     }
@@ -4499,6 +4532,100 @@ if (process.env.NODE_ENV === "production" || Number(PORT) === 80) {
     res.sendFile(import_path.default.join(distPath, "index.html"));
   });
 }
+app.post("/api/goals/:id/attachments", upload.single("file"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+    const goal = await prisma3.goal.findUnique({ where: { id } });
+    if (!goal) {
+      import_fs.default.unlinkSync(file.path);
+      return res.status(404).json({ error: "Goal not found" });
+    }
+    const attachment = await prisma3.attachment.create({
+      data: {
+        fileName: file.filename,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+        goalId: id
+      }
+    });
+    await req.audit?.({
+      action: "CREATE",
+      entityType: "Attachment",
+      entityId: attachment.id,
+      entityTitle: file.originalname
+    });
+    res.json(attachment);
+  } catch (error) {
+    console.error("Error uploading file:", error);
+    if (req.file) {
+      try {
+        import_fs.default.unlinkSync(req.file.path);
+      } catch (cleanupError) {
+        console.error("Error cleaning up file:", cleanupError);
+      }
+    }
+    res.status(500).json({ error: "Failed to upload file" });
+  }
+});
+app.get("/api/goals/:id/attachments", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const attachments = await prisma3.attachment.findMany({
+      where: { goalId: id },
+      orderBy: { createdAt: "desc" }
+    });
+    res.json(attachments);
+  } catch (error) {
+    console.error("Error fetching attachments:", error);
+    res.status(500).json({ error: "Failed to fetch attachments" });
+  }
+});
+app.get("/api/attachments/:id/download", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const attachment = await prisma3.attachment.findUnique({ where: { id } });
+    if (!attachment) {
+      return res.status(404).json({ error: "Attachment not found" });
+    }
+    const filePath = import_path.default.join(uploadsDir, attachment.fileName);
+    if (!import_fs.default.existsSync(filePath)) {
+      return res.status(404).json({ error: "File not found on disk" });
+    }
+    res.download(filePath, attachment.originalName);
+  } catch (error) {
+    console.error("Error downloading file:", error);
+    res.status(500).json({ error: "Failed to download file" });
+  }
+});
+app.delete("/api/attachments/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const attachment = await prisma3.attachment.findUnique({ where: { id } });
+    if (!attachment) {
+      return res.status(404).json({ error: "Attachment not found" });
+    }
+    const filePath = import_path.default.join(uploadsDir, attachment.fileName);
+    if (import_fs.default.existsSync(filePath)) {
+      import_fs.default.unlinkSync(filePath);
+    }
+    await prisma3.attachment.delete({ where: { id } });
+    await req.audit?.({
+      action: "DELETE",
+      entityType: "Attachment",
+      entityId: id,
+      entityTitle: attachment.originalName
+    });
+    res.json({ message: "Attachment deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting attachment:", error);
+    res.status(500).json({ error: "Failed to delete attachment" });
+  }
+});
 app.get("/api/settings", async (req, res) => {
   try {
     const settings = await prisma3.setting.findMany();

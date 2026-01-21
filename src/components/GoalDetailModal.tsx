@@ -1,4 +1,4 @@
-import { Goal, SubGoal, GoalSize, Note, GoalCategory } from '@/types/goal';
+import { Goal, SubGoal, GoalSize, Note, GoalCategory, Attachment } from '@/types/goal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,11 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Slider } from '@/components/ui/slider';
-import { Trash2, Plus, Maximize2, StickyNote, Pin, ChevronUp, ChevronDown, Pencil, Save, X } from 'lucide-react';
+import { Trash2, Plus, Maximize2, StickyNote, Pin, ChevronUp, ChevronDown, Pencil, Save, X, Paperclip, Upload, Download, FileText } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { LinkifiedText } from '@/components/LinkifiedText';
 import { v4 as uuidv4 } from 'uuid';
+import { api } from '@/lib/api';
 
 interface GoalDetailModalProps {
   goal: Goal | null;
@@ -393,6 +394,21 @@ export const GoalDetailModal = ({ goal, open, onClose, onSave, onDelete, categor
 
           <div className="pt-4 border-t">
             <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-2">
+                <Paperclip className="w-5 h-5 text-primary" />
+                <h3 className="text-lg font-semibold">첨부파일</h3>
+              </div>
+            </div>
+
+            <AttachmentSection
+              goalId={editedGoal.id}
+              attachments={editedGoal.attachments || []}
+              onAttachmentsChange={(attachments) => setEditedGoal({ ...editedGoal, attachments })}
+            />
+          </div>
+
+          <div className="pt-4 border-t">
+            <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">하위 목표</h3>
               <Button onClick={handleAddSubGoal} size="sm" variant="outline">
                 <Plus className="w-4 h-4 mr-1" />
@@ -689,6 +705,152 @@ const NoteInput = ({ onAddNote }: { onAddNote: (content: string, isPinned: boole
           추가
         </Button>
       </div>
+    </div>
+  );
+};
+
+const AttachmentSection = ({
+  goalId,
+  attachments,
+  onAttachmentsChange,
+}: {
+  goalId: string;
+  attachments: Attachment[];
+  onAttachmentsChange: (attachments: Attachment[]) => void;
+}) => {
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+
+    // Validate file size (10MB limit)
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError('파일 크기는 10MB를 초과할 수 없습니다.');
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      setUploadError(null);
+
+      const newAttachment = await api.uploadAttachment(goalId, file);
+      onAttachmentsChange([...attachments, newAttachment]);
+
+      // Reset file input
+      e.target.value = '';
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      setUploadError('파일 업로드에 실패했습니다.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDownload = (attachmentId: string) => {
+    api.downloadAttachment(attachmentId);
+  };
+
+  const handleDelete = async (attachmentId: string) => {
+    if (!confirm('이 파일을 삭제하시겠습니까?')) return;
+
+    try {
+      await api.deleteAttachment(attachmentId);
+      onAttachmentsChange(attachments.filter(a => a.id !== attachmentId));
+    } catch (error) {
+      console.error('Error deleting attachment:', error);
+      alert('파일 삭제에 실패했습니다.');
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <label
+          htmlFor="file-upload"
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 rounded-md border-2 border-dashed cursor-pointer transition-colors",
+            isUploading
+              ? "bg-muted border-muted-foreground/50 cursor-not-allowed"
+              : "hover:bg-accent border-border"
+          )}
+        >
+          <Upload className="w-4 h-4" />
+          <span className="text-sm">
+            {isUploading ? '업로드 중...' : '파일 선택'}
+          </span>
+        </label>
+        <input
+          id="file-upload"
+          type="file"
+          className="hidden"
+          onChange={handleFileSelect}
+          disabled={isUploading}
+        />
+        <span className="text-xs text-muted-foreground">
+          최대 10MB
+        </span>
+      </div>
+
+      {uploadError && (
+        <p className="text-sm text-destructive">{uploadError}</p>
+      )}
+
+      {attachments.length > 0 ? (
+        <div className="space-y-2">
+          {attachments.map((attachment) => (
+            <div
+              key={attachment.id}
+              className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-border"
+            >
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <FileText className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {attachment.originalName}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatFileSize(attachment.size)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-1">
+                <Button
+                  onClick={() => handleDownload(attachment.id)}
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  title="다운로드"
+                >
+                  <Download className="w-4 h-4" />
+                </Button>
+                <Button
+                  onClick={() => handleDelete(attachment.id)}
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-destructive"
+                  title="삭제"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground text-center py-4">
+          첨부된 파일이 없습니다
+        </p>
+      )}
     </div>
   );
 };

@@ -40,3 +40,6 @@ daemon/
 
 # Temporary scripts
 server/fix-*.ts
+
+# Uploaded files
+uploads/

@@ -1,11 +1,12 @@
 import { Goal, GoalCategory, GoalSize } from '@/types/goal';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, User, TrendingUp, GripVertical, StickyNote, CheckCircle2, Circle } from 'lucide-react';
+import { Calendar, User, TrendingUp, GripVertical, StickyNote, CheckCircle2, Circle, Paperclip, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LinkifiedText } from '@/components/LinkifiedText';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { api } from '@/lib/api';
 import {
   HoverCard,
   HoverCardContent,
@@ -117,51 +118,62 @@ export const CompactGoalCard = ({ goal, onClick, categoryColors, onToggleComplet
             goal.completed && 'opacity-60 saturate-50'
           )}
         >
-          <div className="absolute top-1.5 right-1.5 flex gap-1 items-center">
-            {onToggleComplete && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleComplete(goal.id, !goal.completed);
-                }}
-                className={cn(
-                  "group relative flex items-center gap-1 px-1.5 py-1 rounded-md",
-                  "transition-all duration-300 ease-out",
-                  "hover:shadow-md hover:scale-105",
-                  "border",
-                  goal.completed
-                    ? "bg-gradient-to-br from-green-500 to-emerald-600 border-green-400 text-white shadow-green-200/50 shadow-md"
-                    : "bg-background/95 backdrop-blur-sm border-border hover:border-green-400 hover:bg-green-50/50"
-                )}
+          {/* 상단 헤더: 담당자, 첨부파일, 완료, 드래그 */}
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-3 text-xs text-foreground/70 flex-1 min-w-0">
+              <div className="flex items-center gap-1">
+                <User className="w-3 h-3" />
+                <span className="font-medium">{goal.owner}</span>
+              </div>
+              {goal.attachments && goal.attachments.length > 0 && (
+                <div className="flex items-center gap-1 text-primary">
+                  <Paperclip className="w-3 h-3" />
+                  <span className="font-medium">{goal.attachments.length}</span>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-1 items-center flex-shrink-0">
+              {onToggleComplete && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleComplete(goal.id, !goal.completed);
+                  }}
+                  className={cn(
+                    "group relative flex items-center gap-1 px-1.5 py-1 rounded-md",
+                    "transition-all duration-300 ease-out",
+                    "hover:shadow-md hover:scale-105",
+                    "border",
+                    goal.completed
+                      ? "bg-gradient-to-br from-green-500 to-emerald-600 border-green-400 text-white shadow-green-200/50 shadow-md"
+                      : "bg-background/95 backdrop-blur-sm border-border hover:border-green-400 hover:bg-green-50/50"
+                  )}
+                >
+                  {goal.completed ? (
+                    <>
+                      <CheckCircle2 className="w-3 h-3 animate-in zoom-in duration-300" />
+                      <span className="text-[10px] font-semibold">완료</span>
+                    </>
+                  ) : (
+                    <>
+                      <Circle className="w-3 h-3 text-muted-foreground group-hover:text-green-500 transition-colors" />
+                      <span className="text-[10px] font-medium text-muted-foreground group-hover:text-green-600 transition-colors">완료</span>
+                    </>
+                  )}
+                </button>
+              )}
+              <div
+                {...attributes}
+                {...listeners}
+                className="cursor-grab active:cursor-grabbing p-0.5 hover:bg-foreground/10 rounded transition-colors"
+                onClick={(e) => e.stopPropagation()}
               >
-                {goal.completed ? (
-                  <>
-                    <CheckCircle2 className="w-3 h-3 animate-in zoom-in duration-300" />
-                    <span className="text-[10px] font-semibold">완료</span>
-                  </>
-                ) : (
-                  <>
-                    <Circle className="w-3 h-3 text-muted-foreground group-hover:text-green-500 transition-colors" />
-                    <span className="text-[10px] font-medium text-muted-foreground group-hover:text-green-600 transition-colors">완료</span>
-                  </>
-                )}
-              </button>
-            )}
-            <div
-              {...attributes}
-              {...listeners}
-              className="cursor-grab active:cursor-grabbing p-0.5 hover:bg-foreground/10 rounded transition-colors"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <GripVertical className="w-4 h-4 text-foreground/40" />
+                <GripVertical className="w-4 h-4 text-foreground/40" />
+              </div>
             </div>
           </div>
           <div onClick={onClick}>
         <div className="mb-2">
-          <div className="flex items-center gap-1 text-xs text-foreground/70 mb-1.5">
-            <User className="w-3 h-3" />
-            <span className="font-medium">{goal.owner}</span>
-          </div>
           <div className="flex gap-1 flex-wrap">
             {goal.categories && goal.categories.map((category, index) => {
               const catStyle = getCategoryStyle(category as GoalCategory, categoryColors);
@@ -317,6 +329,44 @@ export const CompactGoalCard = ({ goal, onClick, categoryColors, onToggleComplet
                 {goal.subGoals.length > 3 && (
                   <p className="text-xs text-primary font-medium">
                     +{goal.subGoals.length - 3}개 더보기
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {goal.attachments && goal.attachments.length > 0 && (
+            <div className="pt-3 border-t border-foreground/10">
+              <div className="flex items-center gap-2 mb-2">
+                <Paperclip className="w-4 h-4 text-primary" />
+                <p className="text-sm font-semibold">
+                  첨부파일 {goal.attachments.length}개
+                </p>
+              </div>
+              <div className="space-y-1">
+                {goal.attachments.slice(0, 3).map((attachment) => (
+                  <div
+                    key={attachment.id}
+                    className="flex items-center justify-between p-2 bg-muted/50 rounded-md hover:bg-muted transition-colors group"
+                  >
+                    <span className="text-xs font-medium truncate flex-1">
+                      {attachment.originalName}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        api.downloadAttachment(attachment.id);
+                      }}
+                      className="ml-2 p-1 rounded hover:bg-primary/20 transition-colors opacity-0 group-hover:opacity-100"
+                      title="다운로드"
+                    >
+                      <Download className="w-3 h-3 text-primary" />
+                    </button>
+                  </div>
+                ))}
+                {goal.attachments.length > 3 && (
+                  <p className="text-xs text-primary font-medium">
+                    +{goal.attachments.length - 3}개 더보기
                   </p>
                 )}
               </div>

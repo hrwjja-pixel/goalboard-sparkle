@@ -1,4 +1,4 @@
-import { Goal, GoalCategory } from '@/types/goal';
+import { Goal, GoalCategory, Attachment } from '@/types/goal';
 
 // API 기본 URL 설정
 const getApiBaseUrl = () => {
@@ -160,5 +160,43 @@ export const api = {
     });
     if (!response.ok) throw new Error('Failed to update settings');
     return response.json();
+  },
+
+  // Attachments
+  async uploadAttachment(goalId: string, file: File): Promise<Attachment> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const token = localStorage.getItem('auth_token');
+    const headers: HeadersInit = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/goals/${goalId}/attachments`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    if (!response.ok) throw new Error('Failed to upload attachment');
+    return response.json();
+  },
+
+  async getAttachments(goalId: string): Promise<Attachment[]> {
+    const response = await fetch(`${API_BASE_URL}/api/goals/${goalId}/attachments`);
+    if (!response.ok) throw new Error('Failed to fetch attachments');
+    return response.json();
+  },
+
+  async downloadAttachment(attachmentId: string): Promise<void> {
+    window.open(`${API_BASE_URL}/api/attachments/${attachmentId}/download`, '_blank');
+  },
+
+  async deleteAttachment(attachmentId: string): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/api/attachments/${attachmentId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to delete attachment');
   },
 };
