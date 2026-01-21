@@ -37,9 +37,13 @@ import {
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { api } from '@/lib/api';
+import { useUserSettings, ViewMode } from '@/hooks/useUserSettings';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 
 const Index = () => {
   const { user, logout } = useAuth();
+  const { settings: userSettings, updateSettings: updateUserSettings } = useUserSettings();
+
   const [goals, setGoals] = useState<Goal[]>([]);
   const [categories, setCategories] = useState<GoalCategory[]>([]);
   const [categoryColors, setCategoryColors] = useState<Record<string, string>>({});
@@ -51,8 +55,8 @@ const Index = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'normal' | 'compact' | 'list'>('compact');
-  const [showCompleted, setShowCompleted] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>(userSettings.defaultViewMode);
+  const [showCompleted, setShowCompleted] = useState(userSettings.showCompletedByDefault);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [dashboardTitle, setDashboardTitle] = useState('WEHAGO H 목표 대시보드');
   const [dashboardSubtitle, setDashboardSubtitle] = useState('EMR개발본부 > WEHAGO H 개발센터');
@@ -120,8 +124,15 @@ const Index = () => {
     loadData();
   }, []);
 
-  // Background data refresh (30 seconds) - only when safe to update
+  // Background data refresh - only when safe to update
   useEffect(() => {
+    // Skip if auto refresh is disabled
+    if (!userSettings.enableAutoRefresh) {
+      return;
+    }
+
+    const refreshIntervalMs = userSettings.autoRefreshInterval * 1000;
+
     const refreshData = async () => {
       // Skip refresh if user is actively editing
       if (isDetailModalOpen || isAddModalOpen || isSettingsOpen || isDragging) {
@@ -148,13 +159,13 @@ const Index = () => {
       refreshData();
 
       // Set up interval for subsequent refreshes
-      const interval = setInterval(refreshData, 30000); // 30 seconds
+      const interval = setInterval(refreshData, refreshIntervalMs);
 
       return () => clearInterval(interval);
-    }, 30000); // Wait 30 seconds after page load
+    }, refreshIntervalMs);
 
     return () => clearTimeout(initialDelay);
-  }, [isDetailModalOpen, isAddModalOpen, isSettingsOpen, isDragging]);
+  }, [isDetailModalOpen, isAddModalOpen, isSettingsOpen, isDragging, userSettings.enableAutoRefresh, userSettings.autoRefreshInterval]);
 
   // Filter and sort goals (for card views - excludes completed if showCompleted is false)
   const filteredGoals = useMemo(() => {
@@ -478,16 +489,19 @@ const Index = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-xl text-muted-foreground">데이터 로딩 중...</p>
+      <ThemeProvider theme={userSettings.theme} onThemeChange={(theme) => updateUserSettings({ theme })}>
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-xl text-muted-foreground">데이터 로딩 중...</p>
+          </div>
         </div>
-      </div>
+      </ThemeProvider>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <ThemeProvider theme={userSettings.theme} onThemeChange={(theme) => updateUserSettings({ theme })}>
+      <div className="min-h-screen bg-background">
       <div className="w-full px-6 py-6">
         {viewMode === 'normal' || viewMode === 'list' ? (
           <OverallSummary
@@ -614,11 +628,14 @@ const Index = () => {
       <SettingsDialog
         open={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
-        onSave={handleSaveSettings}
+        onSaveGlobal={handleSaveSettings}
+        onSaveUser={updateUserSettings}
         currentTitle={dashboardTitle}
         currentSubtitle={dashboardSubtitle}
+        userSettings={userSettings}
       />
-    </div>
+      </div>
+    </ThemeProvider>
   );
 };
 
