@@ -202,9 +202,9 @@ const Index = () => {
       setSelectedGoal(null);
 
       // Always refresh all goals after save to ensure all users see latest data
-      const allGoalsData = await api.getGoals(showCompleted);
-      const completed = await api.getGoals(true);
-      setCompletedCount(completed.filter(g => g.completed).length);
+      // IMPORTANT: Always fetch ALL goals (true), filtering is done client-side
+      const allGoalsData = await api.getGoals(true);
+      setCompletedCount(allGoalsData.filter(g => g.completed).length);
       setGoals(allGoalsData);
     } catch (error: any) {
       console.error('Failed to save goal:', error);
@@ -224,9 +224,9 @@ const Index = () => {
           setSelectedGoal(null);
 
           // Reload all goals to get the latest data
-          const allGoalsData = await api.getGoals(showCompleted);
-          const completed = await api.getGoals(true);
-          setCompletedCount(completed.filter(g => g.completed).length);
+          // IMPORTANT: Always fetch ALL goals (true), filtering is done client-side
+          const allGoalsData = await api.getGoals(true);
+          setCompletedCount(allGoalsData.filter(g => g.completed).length);
           setGoals(allGoalsData);
         }
 
