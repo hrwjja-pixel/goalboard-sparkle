@@ -3,6 +3,7 @@ import { Progress } from '@/components/ui/progress';
 import { TrendingUp, Plus, Minimize2, List, Maximize2, ChevronDown, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { FilterBar } from '@/components/FilterBar';
 import {
   DropdownMenu,
@@ -138,10 +139,16 @@ export const OverallSummary = ({
           )}
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-lg">
-            <TrendingUp className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold text-primary">진행 중</span>
-          </div>
+          {viewMode === 'list' && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-md border bg-background/50 shadow-sm">
+              <span className="text-xs font-medium text-muted-foreground">완료({completedCount})</span>
+              <Switch
+                checked={showCompleted}
+                onCheckedChange={onShowCompletedToggle}
+                className="data-[state=checked]:bg-green-600"
+              />
+            </div>
+          )}
           {onViewModeChange && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

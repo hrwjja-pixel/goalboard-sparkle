@@ -247,9 +247,14 @@ app.post('/api/goals', async (req: AuthRequest, res: Response) => {
       })
     );
 
+    // Automatically set completed based on progress
+    const progress = goalData.progress !== undefined ? goalData.progress : 0;
+    const completed = progress >= 100;
+
     const goal = await prisma.goal.create({
       data: {
         ...goalData,
+        completed,
         categories: {
           connect: categoryRecords.map(cat => ({ id: cat.id })),
         },
@@ -509,11 +514,19 @@ app.put('/api/goals/:id', async (req: AuthRequest, res: Response) => {
       }
     }
 
+    // Automatically set completed based on progress
+    const updatedData = {
+      ...goalData,
+      completed: goalData.progress !== undefined
+        ? goalData.progress >= 100
+        : currentGoal.progress >= 100,
+    };
+
     // Update the goal with incremented version
     const goal = await prisma.goal.update({
       where: { id },
       data: {
-        ...goalData,
+        ...updatedData,
         categories: {
           set: categoryRecords.map(cat => ({ id: cat.id })),
         },
@@ -653,9 +666,37 @@ app.put('/api/settings', async (req: AuthRequest, res: Response) => {
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on http://0.0.0.0:${PORT}`);
-  console.log(`Also accessible at http://localhost:${PORT}`);
+// Migrate existing data: update completed field based on progress
+async function migrateCompletedField() {
+  try {
+    const goals = await prisma.goal.findMany();
+    let updated = 0;
+
+    for (const goal of goals) {
+      const shouldBeCompleted = goal.progress >= 100;
+      if (goal.completed !== shouldBeCompleted) {
+        await prisma.goal.update({
+          where: { id: goal.id },
+          data: { completed: shouldBeCompleted },
+        });
+        updated++;
+      }
+    }
+
+    if (updated > 0) {
+      console.log(`✅ Migrated ${updated} goals to sync completed field with progress`);
+    }
+  } catch (error) {
+    console.error('Error migrating completed field:', error);
+  }
+}
+
+// Run migration on server start
+migrateCompletedField().then(() => {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on http://0.0.0.0:${PORT}`);
+    console.log(`Also accessible at http://localhost:${PORT}`);
+  });
 });
 
 process.on('beforeExit', async () => {

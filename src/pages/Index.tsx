@@ -498,6 +498,7 @@ const Index = () => {
             categoryColors={categoryColors}
             onGoalClick={handleCardClick}
             onToggleComplete={handleToggleComplete}
+            showCompleted={showCompleted}
           />
         ) : (
           <>

@@ -26,6 +26,7 @@ interface ListViewProps {
   categoryColors?: Record<string, string>;
   onGoalClick: (goal: Goal) => void;
   onToggleComplete?: (goalId: string, completed: boolean) => void;
+  showCompleted: boolean;
 }
 
 type SortField = 'title' | 'owner' | 'progress' | 'completed' | 'startDate' | null;
@@ -36,9 +37,9 @@ export const ListView = ({
   categoryColors,
   onGoalClick,
   onToggleComplete,
+  showCompleted,
 }: ListViewProps) => {
   // Filter states
-  const [completedFilter, setCompletedFilter] = useState<boolean[]>([true, false]); // [completed, not completed]
   const [searchText, setSearchText] = useState('');
   const [selectedOwners, setSelectedOwners] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<GoalCategory[]>([]);
@@ -78,9 +79,10 @@ export const ListView = ({
   // Filter and sort goals
   const filteredAndSortedGoals = useMemo(() => {
     let filtered = goals.filter((goal) => {
-      // Completed filter
-      const isCompleted = goal.completed || false;
-      if (!completedFilter.includes(isCompleted)) return false;
+      // Completed filter - only show completed if showCompleted is true
+      if (!showCompleted && goal.completed) {
+        return false;
+      }
 
       // Search filter
       if (searchText) {
@@ -150,7 +152,7 @@ export const ListView = ({
     }
 
     return filtered;
-  }, [goals, completedFilter, searchText, selectedOwners, selectedCategories, statusSearch, sortField, sortDirection]);
+  }, [goals, showCompleted, searchText, selectedOwners, selectedCategories, statusSearch, sortField, sortDirection]);
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '-';
@@ -195,60 +197,15 @@ export const ListView = ({
             <TableRow className="hover:bg-muted/50">
               {/* 완료 컬럼 */}
               <TableHead className="w-12 font-semibold">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 px-2 flex items-center gap-1 hover:bg-accent font-semibold"
-                      onClick={() => handleSort('completed')}
-                    >
-                      완료
-                      {getSortIcon('completed')}
-                      <Filter className="w-3 h-3 ml-1 opacity-60" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-48 p-3">
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="filter-completed"
-                          checked={completedFilter.includes(true)}
-                          onCheckedChange={(checked) => {
-                            if (checked === true) {
-                              if (!completedFilter.includes(true)) {
-                                setCompletedFilter([...completedFilter, true]);
-                              }
-                            } else {
-                              setCompletedFilter(completedFilter.filter(v => v !== true));
-                            }
-                          }}
-                        />
-                        <label htmlFor="filter-completed" className="text-sm cursor-pointer">
-                          완료
-                        </label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="filter-not-completed"
-                          checked={completedFilter.includes(false)}
-                          onCheckedChange={(checked) => {
-                            if (checked === true) {
-                              if (!completedFilter.includes(false)) {
-                                setCompletedFilter([...completedFilter, false]);
-                              }
-                            } else {
-                              setCompletedFilter(completedFilter.filter(v => v !== false));
-                            }
-                          }}
-                        />
-                        <label htmlFor="filter-not-completed" className="text-sm cursor-pointer">
-                          미완료
-                        </label>
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 flex items-center gap-1 hover:bg-accent font-semibold"
+                  onClick={() => handleSort('completed')}
+                >
+                  완료
+                  {getSortIcon('completed')}
+                </Button>
               </TableHead>
 
               {/* 목표 컬럼 */}
