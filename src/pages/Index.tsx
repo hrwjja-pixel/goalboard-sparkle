@@ -57,6 +57,7 @@ const Index = () => {
   const [dashboardTitle, setDashboardTitle] = useState('WEHAGO H 목표 대시보드');
   const [dashboardSubtitle, setDashboardSubtitle] = useState('EMR개발본부 > WEHAGO H 개발센터');
   const [completedCount, setCompletedCount] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -118,6 +119,42 @@ const Index = () => {
 
     loadData();
   }, []);
+
+  // Background data refresh (30 seconds) - only when safe to update
+  useEffect(() => {
+    const refreshData = async () => {
+      // Skip refresh if user is actively editing
+      if (isDetailModalOpen || isAddModalOpen || isSettingsOpen || isDragging) {
+        return;
+      }
+
+      // Skip refresh if tab is not visible
+      if (document.hidden) {
+        return;
+      }
+
+      try {
+        const allGoalsData = await api.getGoals(true);
+        setCompletedCount(allGoalsData.filter(g => g.completed).length);
+        setGoals(allGoalsData);
+        console.log('Background refresh completed');
+      } catch (error) {
+        console.error('Background refresh failed:', error);
+      }
+    };
+
+    // Initial delay before first refresh
+    const initialDelay = setTimeout(() => {
+      refreshData();
+
+      // Set up interval for subsequent refreshes
+      const interval = setInterval(refreshData, 30000); // 30 seconds
+
+      return () => clearInterval(interval);
+    }, 30000); // Wait 30 seconds after page load
+
+    return () => clearTimeout(initialDelay);
+  }, [isDetailModalOpen, isAddModalOpen, isSettingsOpen, isDragging]);
 
   // Filter and sort goals (for card views - excludes completed if showCompleted is false)
   const filteredGoals = useMemo(() => {
@@ -404,7 +441,12 @@ const Index = () => {
     }
   };
 
+  const handleDragStart = () => {
+    setIsDragging(true);
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
+    setIsDragging(false);
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
@@ -505,6 +547,7 @@ const Index = () => {
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
             >
               <SortableContext
