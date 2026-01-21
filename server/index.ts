@@ -74,10 +74,113 @@ app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'ok' });
 });
 
+// Project endpoints
+app.get('/api/projects', async (req: Request, res: Response) => {
+  try {
+    const projects = await prisma.project.findMany({
+      orderBy: { name: 'asc' },
+    });
+    res.json(projects);
+  } catch (error) {
+    console.error('Error fetching projects:', error);
+    res.status(500).json({ error: 'Failed to fetch projects', details: error });
+  }
+});
+
+app.post('/api/projects', async (req: AuthRequest, res: Response) => {
+  try {
+    const { name, description, dashboardTitle, dashboardSubtitle } = req.body;
+    const project = await prisma.project.create({
+      data: {
+        name,
+        description,
+        dashboardTitle: dashboardTitle || '목표 대시보드',
+        dashboardSubtitle: dashboardSubtitle || '',
+      },
+    });
+
+    // Audit log
+    await (req as any).audit?.({
+      action: 'CREATE',
+      entityType: 'Project',
+      entityId: project.id,
+      entityTitle: project.name,
+    });
+
+    res.json(project);
+  } catch (error) {
+    console.error('Error creating project:', error);
+    res.status(500).json({ error: 'Failed to create project', details: error });
+  }
+});
+
+app.put('/api/projects/:id', async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, description, dashboardTitle, dashboardSubtitle } = req.body;
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (dashboardTitle !== undefined) updateData.dashboardTitle = dashboardTitle;
+    if (dashboardSubtitle !== undefined) updateData.dashboardSubtitle = dashboardSubtitle;
+
+    const project = await prisma.project.update({
+      where: { id },
+      data: updateData,
+    });
+
+    // Audit log
+    await (req as any).audit?.({
+      action: 'UPDATE',
+      entityType: 'Project',
+      entityId: project.id,
+      entityTitle: project.name,
+    });
+
+    res.json(project);
+  } catch (error) {
+    console.error('Error updating project:', error);
+    res.status(500).json({ error: 'Failed to update project', details: error });
+  }
+});
+
+app.delete('/api/projects/:id', async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Get project name before deletion for audit log
+    const project = await prisma.project.findUnique({ where: { id } });
+
+    // This will cascade delete all related goals, categories, etc.
+    await prisma.project.delete({
+      where: { id },
+    });
+
+    // Audit log
+    await (req as any).audit?.({
+      action: 'DELETE',
+      entityType: 'Project',
+      entityId: id,
+      entityTitle: project?.name || 'Unknown',
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting project:', error);
+    res.status(500).json({ error: 'Failed to delete project', details: error });
+  }
+});
+
 // Categories endpoints
 app.get('/api/categories', async (req: Request, res: Response) => {
   try {
+    const projectId = req.query.projectId as string;
+    if (!projectId) {
+      return res.status(400).json({ error: 'projectId is required' });
+    }
+
     const categories = await prisma.category.findMany({
+      where: { projectId },
       orderBy: { name: 'asc' },
     });
     res.json(categories);
@@ -89,9 +192,13 @@ app.get('/api/categories', async (req: Request, res: Response) => {
 
 app.post('/api/categories', async (req: AuthRequest, res: Response) => {
   try {
-    const { name, color } = req.body;
+    const { name, color, projectId } = req.body;
+    if (!projectId) {
+      return res.status(400).json({ error: 'projectId is required' });
+    }
+
     const category = await prisma.category.create({
-      data: { name, color },
+      data: { name, color, projectId },
     });
 
     // Audit log
@@ -165,10 +272,20 @@ app.put('/api/categories/:id', async (req: AuthRequest, res: Response) => {
 // Goals endpoints
 app.get('/api/goals', async (req: Request, res: Response) => {
   try {
+    const projectId = req.query.projectId as string;
+    if (!projectId) {
+      return res.status(400).json({ error: 'projectId is required' });
+    }
+
     const showCompleted = req.query.showCompleted === 'true';
 
+    const whereClause: any = { projectId };
+    if (!showCompleted) {
+      whereClause.completed = false;
+    }
+
     const goals = await prisma.goal.findMany({
-      where: showCompleted ? {} : { completed: false },
+      where: whereClause,
       include: {
         categories: true,
         subGoals: {
@@ -265,23 +382,30 @@ app.get('/api/goals/:id', async (req: Request, res: Response) => {
 
 app.post('/api/goals', async (req: AuthRequest, res: Response) => {
   try {
-    const { categories, subGoals, notes, attachments, ...goalData } = req.body;
+    const { categories, subGoals, notes, attachments, projectId, ...goalData } = req.body;
+
+    if (!projectId) {
+      return res.status(400).json({ error: 'projectId is required' });
+    }
 
     // Validate categories (1-5 required)
     if (!categories || !Array.isArray(categories) || categories.length < 1 || categories.length > 5) {
       return res.status(400).json({ error: 'Must provide 1-5 categories' });
     }
 
-    // Find or create categories
+    // Find or create categories (within the project)
     const categoryRecords = await Promise.all(
       categories.map(async (categoryName: string) => {
-        let categoryRecord = await prisma.category.findUnique({
-          where: { name: categoryName },
+        let categoryRecord = await prisma.category.findFirst({
+          where: {
+            name: categoryName,
+            projectId: projectId,
+          },
         });
 
         if (!categoryRecord) {
           categoryRecord = await prisma.category.create({
-            data: { name: categoryName, color: '#6b7280' },
+            data: { name: categoryName, color: '#6b7280', projectId },
           });
         }
 
@@ -296,6 +420,7 @@ app.post('/api/goals', async (req: AuthRequest, res: Response) => {
     const goal = await prisma.goal.create({
       data: {
         ...goalData,
+        projectId,
         completed,
         categories: {
           connect: categoryRecords.map(cat => ({ id: cat.id })),

@@ -1,6 +1,16 @@
 export type GoalCategory = string;
 export type GoalSize = 'xs' | 'small' | 'medium' | 'large' | 'xl';
 
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  dashboardTitle: string;
+  dashboardSubtitle: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Attachment {
   id: string;
   fileName: string;
@@ -37,6 +47,7 @@ export interface Goal {
   title: string;
   description?: string;
   owner: string;
+  projectId?: string; // 프로젝트 ID
   categories: GoalCategory[]; // 최소 1개, 최대 5개
   progress: number;
   size: GoalSize; // 카드 크기 = 중요도

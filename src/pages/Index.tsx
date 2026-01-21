@@ -39,10 +39,13 @@ import {
 import { api } from '@/lib/api';
 import { useUserSettings, ViewMode } from '@/hooks/useUserSettings';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { useProject } from '@/contexts/ProjectContext';
+import { ProjectSelector } from '@/components/ProjectSelector';
 
 const Index = () => {
   const { user, logout } = useAuth();
   const { settings: userSettings, updateSettings: updateUserSettings } = useUserSettings();
+  const { currentProject } = useProject();
 
   const [goals, setGoals] = useState<Goal[]>([]);
   const [categories, setCategories] = useState<GoalCategory[]>([]);
@@ -73,13 +76,15 @@ const Index = () => {
   // Load categories and goals from API
   useEffect(() => {
     const loadData = async () => {
+      if (!currentProject) return;
+
       try {
         setIsLoading(true);
 
         // Load categories, goals, and settings
         const [categoriesData, allGoalsData, settings] = await Promise.all([
-          api.getCategories(),
-          api.getGoals(true),
+          api.getCategories(currentProject.id),
+          api.getGoals(currentProject.id, true),
           api.getSettings(),
         ]);
 
@@ -122,7 +127,7 @@ const Index = () => {
     };
 
     loadData();
-  }, []);
+  }, [currentProject]);
 
   // Background data refresh - only when safe to update
   useEffect(() => {
@@ -144,8 +149,10 @@ const Index = () => {
         return;
       }
 
+      if (!currentProject) return;
+
       try {
-        const allGoalsData = await api.getGoals(true);
+        const allGoalsData = await api.getGoals(currentProject.id, true);
         setCompletedCount(allGoalsData.filter(g => g.completed).length);
         setGoals(allGoalsData);
         console.log('Background refresh completed');
@@ -251,7 +258,8 @@ const Index = () => {
 
       // Always refresh all goals after save to ensure all users see latest data
       // IMPORTANT: Always fetch ALL goals (true), filtering is done client-side
-      const allGoalsData = await api.getGoals(true);
+      if (!currentProject) return;
+      const allGoalsData = await api.getGoals(currentProject.id, true);
       setCompletedCount(allGoalsData.filter(g => g.completed).length);
       setGoals(allGoalsData);
     } catch (error: any) {
@@ -273,7 +281,8 @@ const Index = () => {
 
           // Reload all goals to get the latest data
           // IMPORTANT: Always fetch ALL goals (true), filtering is done client-side
-          const allGoalsData = await api.getGoals(true);
+          if (!currentProject) return;
+          const allGoalsData = await api.getGoals(currentProject.id, true);
           setCompletedCount(allGoalsData.filter(g => g.completed).length);
           setGoals(allGoalsData);
         }
@@ -297,11 +306,13 @@ const Index = () => {
   };
 
   const handleToggleComplete = async (goalId: string, completed: boolean) => {
+    if (!currentProject) return;
+
     try {
       await api.toggleGoalCompletion(goalId, completed);
 
       // Reload all goals and update completed count
-      const allGoalsData = await api.getGoals(true);
+      const allGoalsData = await api.getGoals(currentProject.id, true);
       const completedTotal = allGoalsData.filter(g => g.completed).length;
       setCompletedCount(completedTotal);
       setGoals(allGoalsData);
@@ -312,9 +323,11 @@ const Index = () => {
   };
 
   const handleAddGoal = async (newGoal: Goal) => {
+    if (!currentProject) return;
+
     try {
       const maxOrder = Math.max(...goals.map((g) => g.order ?? 0), -1);
-      const goalWithOrder = { ...newGoal, order: maxOrder + 1 };
+      const goalWithOrder = { ...newGoal, projectId: currentProject.id, order: maxOrder + 1 };
       const createdGoal = await api.createGoal(goalWithOrder);
       setGoals((prev) => [...prev, createdGoal]);
     } catch (error) {
@@ -324,11 +337,11 @@ const Index = () => {
   };
 
   const handleAddCategory = async (newCategory: string) => {
-    if (!newCategory.trim() || categories.includes(newCategory.trim())) return;
+    if (!currentProject || !newCategory.trim() || categories.includes(newCategory.trim())) return;
     const trimmedCategory = newCategory.trim();
 
     try {
-      const category = await api.createCategory(trimmedCategory, '#6b7280');
+      const category = await api.createCategory(trimmedCategory, '#6b7280', currentProject.id);
       setCategories((prev) => [...prev, trimmedCategory]);
       setSelectedCategories((prev) => [...prev, trimmedCategory]);
       setCategoryColors((prev) => ({ ...prev, [trimmedCategory]: '#6b7280' }));
@@ -503,6 +516,11 @@ const Index = () => {
     <ThemeProvider theme={userSettings.theme} onThemeChange={(theme) => updateUserSettings({ theme })}>
       <div className="min-h-screen bg-background">
       <div className="w-full px-6 py-6">
+        {/* Project selector header */}
+        <div className="mb-4 flex items-center justify-between">
+          <ProjectSelector />
+        </div>
+
         {viewMode === 'normal' || viewMode === 'list' ? (
           <OverallSummary
             goals={goals}

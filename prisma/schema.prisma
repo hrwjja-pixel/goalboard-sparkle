@@ -10,13 +10,32 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Project {
+  id                String     @id @default(uuid())
+  name              String     @unique
+  description       String?
+  dashboardTitle    String     @default("목표 대시보드")
+  dashboardSubtitle String     @default("")
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  goals             Goal[]
+  categories        Category[]
+
+  @@index([name])
+}
+
 model Category {
   id        String   @id @default(uuid())
-  name      String   @unique
+  name      String
   color     String
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   goals     Goal[]
+
+  @@unique([name, projectId])
+  @@index([projectId])
 }
 
 model Goal {
@@ -24,6 +43,8 @@ model Goal {
   title       String
   description String?
   owner       String
+  projectId   String
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   categories  Category[]
   progress    Int          @default(0)
   size        String       @default("medium")
@@ -40,6 +61,7 @@ model Goal {
   attachments Attachment[]
 
   @@index([owner])
+  @@index([projectId])
 }
 
 model SubGoal {

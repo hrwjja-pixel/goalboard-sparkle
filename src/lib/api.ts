@@ -1,4 +1,4 @@
-import { Goal, GoalCategory, Attachment } from '@/types/goal';
+import { Goal, GoalCategory, Attachment, Project } from '@/types/goal';
 
 // API 기본 URL 설정
 const getApiBaseUrl = () => {
@@ -37,18 +37,53 @@ interface CategoryWithId {
 }
 
 export const api = {
+  // Projects
+  async getProjects(): Promise<Project[]> {
+    const response = await fetch(`${API_BASE_URL}/api/projects`);
+    if (!response.ok) throw new Error('Failed to fetch projects');
+    return response.json();
+  },
+
+  async createProject(project: { name: string; description?: string; dashboardTitle?: string; dashboardSubtitle?: string }): Promise<Project> {
+    const response = await fetch(`${API_BASE_URL}/api/projects`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(project),
+    });
+    if (!response.ok) throw new Error('Failed to create project');
+    return response.json();
+  },
+
+  async updateProject(id: string, project: Partial<Project>): Promise<Project> {
+    const response = await fetch(`${API_BASE_URL}/api/projects/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(project),
+    });
+    if (!response.ok) throw new Error('Failed to update project');
+    return response.json();
+  },
+
+  async deleteProject(id: string): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/api/projects/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to delete project');
+  },
+
   // Categories
-  async getCategories(): Promise<CategoryWithId[]> {
-    const response = await fetch(`${API_BASE_URL}/api/categories`);
+  async getCategories(projectId: string): Promise<CategoryWithId[]> {
+    const response = await fetch(`${API_BASE_URL}/api/categories?projectId=${projectId}`);
     if (!response.ok) throw new Error('Failed to fetch categories');
     return response.json();
   },
 
-  async createCategory(name: string, color: string): Promise<CategoryWithId> {
+  async createCategory(name: string, color: string, projectId: string): Promise<CategoryWithId> {
     const response = await fetch(`${API_BASE_URL}/api/categories`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ name, color }),
+      body: JSON.stringify({ name, color, projectId }),
     });
     if (!response.ok) throw new Error('Failed to create category');
     return response.json();
@@ -82,8 +117,8 @@ export const api = {
   },
 
   // Goals
-  async getGoals(showCompleted: boolean = false): Promise<Goal[]> {
-    const url = `${API_BASE_URL}/api/goals?showCompleted=${showCompleted}`;
+  async getGoals(projectId: string, showCompleted: boolean = false): Promise<Goal[]> {
+    const url = `${API_BASE_URL}/api/goals?projectId=${projectId}&showCompleted=${showCompleted}`;
     const response = await fetch(url);
     if (!response.ok) throw new Error('Failed to fetch goals');
     return response.json();
