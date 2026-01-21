@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
-import path from 'path';
 import session from 'express-session';
 import passport from 'passport';
 import { PrismaClient } from '@prisma/client';
@@ -9,10 +8,45 @@ import { setupPassport } from './auth/passport';
 import authRoutes from './routes/auth';
 import { optionalAuth, AuthRequest } from './middleware/auth';
 import { attachAuditLog } from './middleware/audit';
+import path from 'path';
+import multer from 'multer';
+import fs from 'fs';
 
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, '..', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Multer configuration for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename: timestamp-randomstring-originalname
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    // Multer uses busboy which decodes multipart as latin1, but browsers send UTF-8
+    // We need to convert: latin1 bytes -> UTF-8 string
+    const decodedName = Buffer.from(file.originalname, 'latin1').toString('utf8').normalize('NFC');
+    cb(null, uniqueSuffix + '-' + decodedName);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept all file types for now
+    cb(null, true);
+  }
+});
 
 // Setup Passport
 setupPassport();
@@ -53,12 +87,21 @@ app.get('/api/categories', async (req: Request, res: Response) => {
   }
 });
 
-app.post('/api/categories', async (req: Request, res: Response) => {
+app.post('/api/categories', async (req: AuthRequest, res: Response) => {
   try {
     const { name, color } = req.body;
     const category = await prisma.category.create({
       data: { name, color },
     });
+
+    // Audit log
+    await (req as any).audit?.({
+      action: 'CREATE',
+      entityType: 'Category',
+      entityId: category.id,
+      entityTitle: category.name,
+    });
+
     res.json(category);
   } catch (error) {
     console.error('Error creating category:', error);
@@ -66,19 +109,32 @@ app.post('/api/categories', async (req: Request, res: Response) => {
   }
 });
 
-app.delete('/api/categories/:id', async (req: Request, res: Response) => {
+app.delete('/api/categories/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
+
+    // Get category name before deletion for audit log
+    const category = await prisma.category.findUnique({ where: { id } });
+
     await prisma.category.delete({
       where: { id },
     });
+
+    // Audit log
+    await (req as any).audit?.({
+      action: 'DELETE',
+      entityType: 'Category',
+      entityId: id,
+      entityTitle: category?.name || 'Unknown',
+    });
+
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete category' });
   }
 });
 
-app.put('/api/categories/:id', async (req: Request, res: Response) => {
+app.put('/api/categories/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { color, name } = req.body;
@@ -90,6 +146,15 @@ app.put('/api/categories/:id', async (req: Request, res: Response) => {
       where: { id },
       data: updateData,
     });
+
+    // Audit log
+    await (req as any).audit?.({
+      action: 'UPDATE',
+      entityType: 'Category',
+      entityId: category.id,
+      entityTitle: category.name,
+    });
+
     res.json(category);
   } catch (error) {
     console.error('Error updating category:', error);
@@ -100,13 +165,19 @@ app.put('/api/categories/:id', async (req: Request, res: Response) => {
 // Goals endpoints
 app.get('/api/goals', async (req: Request, res: Response) => {
   try {
+    const showCompleted = req.query.showCompleted === 'true';
+
     const goals = await prisma.goal.findMany({
+      where: showCompleted ? {} : { completed: false },
       include: {
         categories: true,
         subGoals: {
           orderBy: { createdAt: 'asc' },
         },
         notes: {
+          orderBy: { createdAt: 'desc' },
+        },
+        attachments: {
           orderBy: { createdAt: 'desc' },
         },
       },
@@ -126,8 +197,11 @@ app.get('/api/goals', async (req: Request, res: Response) => {
       dueDate: goal.dueDate,
       statusNote: goal.statusNote,
       order: goal.order,
+      completed: goal.completed,
+      version: goal.version,
       subGoals: goal.subGoals,
       notes: goal.notes,
+      attachments: goal.attachments,
     }));
 
     res.json(transformedGoals);
@@ -137,9 +211,61 @@ app.get('/api/goals', async (req: Request, res: Response) => {
   }
 });
 
-app.post('/api/goals', async (req: Request, res: Response) => {
+// Get single goal with latest data
+app.get('/api/goals/:id', async (req: Request, res: Response) => {
   try {
-    const { categories, subGoals, notes, ...goalData } = req.body;
+    const { id } = req.params;
+
+    const goal = await prisma.goal.findUnique({
+      where: { id },
+      include: {
+        categories: true,
+        subGoals: {
+          orderBy: { createdAt: 'asc' },
+        },
+        notes: {
+          orderBy: { createdAt: 'desc' },
+        },
+        attachments: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!goal) {
+      return res.status(404).json({ error: 'Goal not found' });
+    }
+
+    // Transform to match frontend format
+    const transformedGoal = {
+      id: goal.id,
+      title: goal.title,
+      description: goal.description,
+      owner: goal.owner,
+      categories: goal.categories.map(cat => cat.name),
+      progress: goal.progress,
+      size: goal.size,
+      startDate: goal.startDate,
+      dueDate: goal.dueDate,
+      statusNote: goal.statusNote,
+      order: goal.order,
+      completed: goal.completed,
+      version: goal.version,
+      subGoals: goal.subGoals,
+      notes: goal.notes,
+      attachments: goal.attachments,
+    };
+
+    res.json(transformedGoal);
+  } catch (error) {
+    console.error('Error fetching goal:', error);
+    res.status(500).json({ error: 'Failed to fetch goal' });
+  }
+});
+
+app.post('/api/goals', async (req: AuthRequest, res: Response) => {
+  try {
+    const { categories, subGoals, notes, attachments, ...goalData } = req.body;
 
     // Validate categories (1-5 required)
     if (!categories || !Array.isArray(categories) || categories.length < 1 || categories.length > 5) {
@@ -163,9 +289,14 @@ app.post('/api/goals', async (req: Request, res: Response) => {
       })
     );
 
+    // Automatically set completed based on progress
+    const progress = goalData.progress !== undefined ? goalData.progress : 0;
+    const completed = progress >= 100;
+
     const goal = await prisma.goal.create({
       data: {
         ...goalData,
+        completed,
         categories: {
           connect: categoryRecords.map(cat => ({ id: cat.id })),
         },
@@ -189,6 +320,8 @@ app.post('/api/goals', async (req: Request, res: Response) => {
                 id: note.id,
                 content: note.content,
                 isPinned: note.isPinned,
+                createdAt: note.createdAt,
+                updatedAt: note.updatedAt,
               })),
             }
           : undefined,
@@ -198,6 +331,14 @@ app.post('/api/goals', async (req: Request, res: Response) => {
         subGoals: true,
         notes: true,
       },
+    });
+
+    // Audit log
+    await (req as any).audit?.({
+      action: 'CREATE',
+      entityType: 'Goal',
+      entityId: goal.id,
+      entityTitle: goal.title,
     });
 
     res.json({
@@ -212,7 +353,7 @@ app.post('/api/goals', async (req: Request, res: Response) => {
 
 // Bulk update goal orders (for drag and drop)
 // IMPORTANT: This must be before /api/goals/:id to avoid route matching issues
-app.put('/api/goals/reorder', async (req: Request, res: Response) => {
+app.put('/api/goals/reorder', async (req: AuthRequest, res: Response) => {
   try {
     const { goals } = req.body;
 
@@ -229,6 +370,14 @@ app.put('/api/goals/reorder', async (req: Request, res: Response) => {
       )
     );
 
+    // Audit log
+    await (req as any).audit?.({
+      action: 'REORDER',
+      entityType: 'Goal',
+      entityId: 'bulk',
+      entityTitle: `${goals.length} goals reordered`,
+    });
+
     res.json({ success: true });
   } catch (error) {
     console.error('Error reordering goals:', error);
@@ -236,14 +385,74 @@ app.put('/api/goals/reorder', async (req: Request, res: Response) => {
   }
 });
 
-app.put('/api/goals/:id', async (req: Request, res: Response) => {
+// Toggle goal completion status
+app.put('/api/goals/:id/complete', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { categories, subGoals, notes, ...goalData } = req.body;
+    const { completed } = req.body;
+
+    const goal = await prisma.goal.update({
+      where: { id },
+      data: {
+        completed,
+        version: { increment: 1 }
+      },
+      include: {
+        categories: true,
+        subGoals: { orderBy: { createdAt: 'asc' } },
+        notes: { orderBy: { createdAt: 'desc' } },
+        attachments: { orderBy: { createdAt: 'desc' } },
+      },
+    });
+
+    // Audit log
+    await (req as any).audit?.({
+      action: 'UPDATE',
+      entityType: 'Goal',
+      entityId: goal.id,
+      entityTitle: goal.title,
+      changes: JSON.stringify({ completed }),
+    });
+
+    res.json({
+      ...goal,
+      categories: goal.categories.map(cat => cat.name),
+    });
+  } catch (error) {
+    console.error('Error toggling goal completion:', error);
+    res.status(500).json({ error: 'Failed to toggle goal completion', details: error });
+  }
+});
+
+app.put('/api/goals/:id', async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { categories, subGoals, notes, attachments, version, ...goalData } = req.body;
 
     // Validate categories (1-5 required)
     if (!categories || !Array.isArray(categories) || categories.length < 1 || categories.length > 5) {
       return res.status(400).json({ error: 'Must provide 1-5 categories' });
+    }
+
+    // Optimistic locking: Check version
+    const currentGoal = await prisma.goal.findUnique({
+      where: { id },
+      include: {
+        subGoals: true,
+        notes: true,
+      },
+    });
+
+    if (!currentGoal) {
+      return res.status(404).json({ error: 'Goal not found' });
+    }
+
+    if (version !== undefined && currentGoal.version !== version) {
+      return res.status(409).json({
+        error: 'Conflict',
+        message: '다른 사용자가 이 목표를 수정했습니다. 새로고침 후 다시 시도하세요.',
+        currentData: currentGoal,
+      });
     }
 
     // Find or create categories
@@ -263,51 +472,126 @@ app.put('/api/goals/:id', async (req: Request, res: Response) => {
       })
     );
 
-    // Delete existing subgoals and notes, then recreate
-    await prisma.subGoal.deleteMany({
-      where: { goalId: id },
-    });
+    // Partial update for SubGoals
+    if (subGoals) {
+      const incomingSubGoalIds = new Set(subGoals.map((sg: any) => sg.id).filter(Boolean));
+      const existingSubGoalIds = new Set(currentGoal.subGoals.map((sg) => sg.id));
 
-    await prisma.note.deleteMany({
-      where: { goalId: id },
-    });
+      // Delete subgoals that are not in the incoming data
+      const subGoalsToDelete = currentGoal.subGoals.filter((sg) => !incomingSubGoalIds.has(sg.id));
+      for (const sg of subGoalsToDelete) {
+        await prisma.subGoal.delete({ where: { id: sg.id } });
+      }
 
+      // Update existing or create new subgoals
+      for (const sg of subGoals) {
+        if (sg.id && existingSubGoalIds.has(sg.id)) {
+          // Update existing subgoal
+          await prisma.subGoal.update({
+            where: { id: sg.id },
+            data: {
+              title: sg.title,
+              description: sg.description,
+              owner: sg.owner,
+              progress: sg.progress,
+              startDate: sg.startDate,
+              dueDate: sg.dueDate,
+              statusNote: sg.statusNote,
+              version: { increment: 1 },
+            },
+          });
+        } else {
+          // Create new subgoal
+          await prisma.subGoal.create({
+            data: {
+              id: sg.id || undefined,
+              title: sg.title,
+              description: sg.description,
+              owner: sg.owner,
+              progress: sg.progress,
+              startDate: sg.startDate,
+              dueDate: sg.dueDate,
+              statusNote: sg.statusNote,
+              goalId: id,
+            },
+          });
+        }
+      }
+    }
+
+    // Partial update for Notes
+    if (notes) {
+      const incomingNoteIds = new Set(notes.map((note: any) => note.id).filter(Boolean));
+      const existingNoteIds = new Set(currentGoal.notes.map((note) => note.id));
+
+      // Delete notes that are not in the incoming data
+      const notesToDelete = currentGoal.notes.filter((note) => !incomingNoteIds.has(note.id));
+      for (const note of notesToDelete) {
+        await prisma.note.delete({ where: { id: note.id } });
+      }
+
+      // Update existing or create new notes
+      for (const note of notes) {
+        if (note.id && existingNoteIds.has(note.id)) {
+          // Update existing note
+          await prisma.note.update({
+            where: { id: note.id },
+            data: {
+              content: note.content,
+              isPinned: note.isPinned,
+              version: { increment: 1 },
+            },
+          });
+        } else {
+          // Create new note
+          await prisma.note.create({
+            data: {
+              id: note.id || undefined,
+              content: note.content,
+              isPinned: note.isPinned,
+              goalId: id,
+              createdAt: note.createdAt || new Date(),
+            },
+          });
+        }
+      }
+    }
+
+    // Automatically set completed based on progress
+    const updatedData = {
+      ...goalData,
+      completed: goalData.progress !== undefined
+        ? goalData.progress >= 100
+        : currentGoal.progress >= 100,
+    };
+
+    // Update the goal with incremented version
     const goal = await prisma.goal.update({
       where: { id },
       data: {
-        ...goalData,
+        ...updatedData,
         categories: {
           set: categoryRecords.map(cat => ({ id: cat.id })),
         },
-        subGoals: subGoals
-          ? {
-              create: subGoals.map((sg: any) => ({
-                id: sg.id,
-                title: sg.title,
-                description: sg.description,
-                owner: sg.owner,
-                progress: sg.progress,
-                startDate: sg.startDate,
-                dueDate: sg.dueDate,
-                statusNote: sg.statusNote,
-              })),
-            }
-          : undefined,
-        notes: notes
-          ? {
-              create: notes.map((note: any) => ({
-                id: note.id,
-                content: note.content,
-                isPinned: note.isPinned,
-              })),
-            }
-          : undefined,
+        version: { increment: 1 },
       },
       include: {
         categories: true,
-        subGoals: true,
-        notes: true,
+        subGoals: {
+          orderBy: { createdAt: 'asc' },
+        },
+        notes: {
+          orderBy: { createdAt: 'desc' },
+        },
       },
+    });
+
+    // Audit log
+    await (req as any).audit?.({
+      action: 'UPDATE',
+      entityType: 'Goal',
+      entityId: goal.id,
+      entityTitle: goal.title,
     });
 
     res.json({
@@ -320,32 +604,277 @@ app.put('/api/goals/:id', async (req: Request, res: Response) => {
   }
 });
 
-app.delete('/api/goals/:id', async (req: Request, res: Response) => {
+app.delete('/api/goals/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
+
+    // Get goal title before deletion for audit log
+    const goal = await prisma.goal.findUnique({ where: { id } });
+
     await prisma.goal.delete({
       where: { id },
     });
+
+    // Audit log
+    await (req as any).audit?.({
+      action: 'DELETE',
+      entityType: 'Goal',
+      entityId: id,
+      entityTitle: goal?.title || 'Unknown',
+    });
+
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete goal' });
   }
 });
 
-// Serve static files from the React app (dist folder)
-const distPath = path.join(process.cwd(), 'dist');
-app.use(express.static(distPath));
+// Serve static files from dist directory in production
+if (process.env.NODE_ENV === 'production' || Number(PORT) === 80) {
+  const distPath = path.resolve(process.cwd(), 'dist');
+  console.log('Serving static files from:', distPath);
+  app.use(express.static(distPath));
 
-// All other requests should serve the React app (SPA fallback)
-app.use((req, res) => {
-  res.sendFile(path.join(distPath, 'index.html'));
+  // Handle client-side routing - send all non-API requests to index.html
+  app.use((req: Request, res: Response, next) => {
+    // Skip if it's an API request
+    if (req.path.startsWith('/api')) {
+      return next();
+    }
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
+
+// Attachment endpoints
+
+// Upload file to a goal
+app.post('/api/goals/:id/attachments', upload.single('file'), async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    // Check if goal exists
+    const goal = await prisma.goal.findUnique({ where: { id } });
+    if (!goal) {
+      // Clean up uploaded file
+      fs.unlinkSync(file.path);
+      return res.status(404).json({ error: 'Goal not found' });
+    }
+
+    // Create attachment record
+    // Multer uses busboy which decodes multipart as latin1, but browsers send UTF-8
+    // We need to convert: latin1 bytes -> UTF-8 string
+    const decodedOriginalName = Buffer.from(file.originalname, 'latin1').toString('utf8').normalize('NFC');
+
+    const attachment = await prisma.attachment.create({
+      data: {
+        fileName: file.filename,
+        originalName: decodedOriginalName,
+        mimeType: file.mimetype,
+        size: file.size,
+        goalId: id,
+      },
+    });
+
+    // Audit log
+    await (req as any).audit?.({
+      action: 'CREATE',
+      entityType: 'Attachment',
+      entityId: attachment.id,
+      entityTitle: decodedOriginalName,
+    });
+
+    res.json(attachment);
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    // Clean up file if database operation failed
+    if (req.file) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (cleanupError) {
+        console.error('Error cleaning up file:', cleanupError);
+      }
+    }
+    res.status(500).json({ error: 'Failed to upload file' });
+  }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log('🚀 Goalboard Server running!');
-  console.log(`📡 Local: http://localhost:${PORT}`);
-  console.log(`🌐 Network: http://10.51.18.139:${PORT}`);
-  console.log(`\nAccess from other devices using: http://10.51.18.139:${PORT}`);
+// Get attachments for a goal
+app.get('/api/goals/:id/attachments', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const attachments = await prisma.attachment.findMany({
+      where: { goalId: id },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(attachments);
+  } catch (error) {
+    console.error('Error fetching attachments:', error);
+    res.status(500).json({ error: 'Failed to fetch attachments' });
+  }
+});
+
+// Download an attachment
+app.get('/api/attachments/:id/download', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const attachment = await prisma.attachment.findUnique({ where: { id } });
+    if (!attachment) {
+      return res.status(404).json({ error: 'Attachment not found' });
+    }
+
+    const filePath = path.join(uploadsDir, attachment.fileName);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'File not found on disk' });
+    }
+
+    // Properly encode filename for Content-Disposition header (RFC 5987)
+    const encodedFilename = encodeURIComponent(attachment.originalName);
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedFilename}`);
+    res.setHeader('Content-Type', attachment.mimeType || 'application/octet-stream');
+    res.sendFile(filePath);
+  } catch (error) {
+    console.error('Error downloading file:', error);
+    res.status(500).json({ error: 'Failed to download file' });
+  }
+});
+
+// Delete an attachment
+app.delete('/api/attachments/:id', async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const attachment = await prisma.attachment.findUnique({ where: { id } });
+    if (!attachment) {
+      return res.status(404).json({ error: 'Attachment not found' });
+    }
+
+    // Delete file from disk
+    const filePath = path.join(uploadsDir, attachment.fileName);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    // Delete database record
+    await prisma.attachment.delete({ where: { id } });
+
+    // Audit log
+    await (req as any).audit?.({
+      action: 'DELETE',
+      entityType: 'Attachment',
+      entityId: id,
+      entityTitle: attachment.originalName,
+    });
+
+    res.json({ message: 'Attachment deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting attachment:', error);
+    res.status(500).json({ error: 'Failed to delete attachment' });
+  }
+});
+
+// Settings endpoints
+app.get('/api/settings', async (req: Request, res: Response) => {
+  try {
+    const settings = await prisma.setting.findMany();
+    const settingsObj = settings.reduce((acc, setting) => {
+      acc[setting.key] = setting.value;
+      return acc;
+    }, {} as Record<string, string>);
+
+    // Set defaults if not found
+    const defaults = {
+      dashboardTitle: process.env.DASHBOARD_TITLE || 'WEHAGO H 목표 대시보드',
+      dashboardSubtitle: process.env.DASHBOARD_SUBTITLE || 'EMR개발본부 > WEHAGO H 개발센터',
+    };
+
+    res.json({ ...defaults, ...settingsObj });
+  } catch (error) {
+    console.error('Error fetching settings:', error);
+    res.status(500).json({ error: 'Failed to fetch settings' });
+  }
+});
+
+app.put('/api/settings', async (req: AuthRequest, res: Response) => {
+  try {
+    const { dashboardTitle, dashboardSubtitle } = req.body;
+
+    if (dashboardTitle !== undefined) {
+      await prisma.setting.upsert({
+        where: { key: 'dashboardTitle' },
+        update: { value: dashboardTitle },
+        create: { key: 'dashboardTitle', value: dashboardTitle },
+      });
+    }
+
+    if (dashboardSubtitle !== undefined) {
+      await prisma.setting.upsert({
+        where: { key: 'dashboardSubtitle' },
+        update: { value: dashboardSubtitle },
+        create: { key: 'dashboardSubtitle', value: dashboardSubtitle },
+      });
+    }
+
+    // Audit log
+    await (req as any).audit?.({
+      action: 'UPDATE',
+      entityType: 'Setting',
+      entityId: 'dashboard',
+      entityTitle: 'Dashboard Settings',
+      changes: JSON.stringify({ dashboardTitle, dashboardSubtitle }),
+    });
+
+    const settings = await prisma.setting.findMany();
+    const settingsObj = settings.reduce((acc, setting) => {
+      acc[setting.key] = setting.value;
+      return acc;
+    }, {} as Record<string, string>);
+
+    res.json(settingsObj);
+  } catch (error) {
+    console.error('Error updating settings:', error);
+    res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
+// Migrate existing data: update completed field based on progress
+async function migrateCompletedField() {
+  try {
+    const goals = await prisma.goal.findMany();
+    let updated = 0;
+
+    for (const goal of goals) {
+      const shouldBeCompleted = goal.progress >= 100;
+      if (goal.completed !== shouldBeCompleted) {
+        await prisma.goal.update({
+          where: { id: goal.id },
+          data: { completed: shouldBeCompleted },
+        });
+        updated++;
+      }
+    }
+
+    if (updated > 0) {
+      console.log(`✅ Migrated ${updated} goals to sync completed field with progress`);
+    }
+  } catch (error) {
+    console.error('Error migrating completed field:', error);
+  }
+}
+
+// Run migration on server start
+migrateCompletedField().then(() => {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on http://0.0.0.0:${PORT}`);
+    console.log(`Also accessible at http://localhost:${PORT}`);
+  });
 });
 
 process.on('beforeExit', async () => {

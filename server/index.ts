@@ -30,7 +30,10 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => {
     // Generate unique filename: timestamp-randomstring-originalname
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + '-' + file.originalname);
+    // Multer uses busboy which decodes multipart as latin1, but browsers send UTF-8
+    // We need to convert: latin1 bytes -> UTF-8 string
+    const decodedName = Buffer.from(file.originalname, 'latin1').toString('utf8').normalize('NFC');
+    cb(null, uniqueSuffix + '-' + decodedName);
   }
 });
 
@@ -663,10 +666,14 @@ app.post('/api/goals/:id/attachments', upload.single('file'), async (req: AuthRe
     }
 
     // Create attachment record
+    // Multer uses busboy which decodes multipart as latin1, but browsers send UTF-8
+    // We need to convert: latin1 bytes -> UTF-8 string
+    const decodedOriginalName = Buffer.from(file.originalname, 'latin1').toString('utf8').normalize('NFC');
+
     const attachment = await prisma.attachment.create({
       data: {
         fileName: file.filename,
-        originalName: file.originalname,
+        originalName: decodedOriginalName,
         mimeType: file.mimetype,
         size: file.size,
         goalId: id,
@@ -678,7 +685,7 @@ app.post('/api/goals/:id/attachments', upload.single('file'), async (req: AuthRe
       action: 'CREATE',
       entityType: 'Attachment',
       entityId: attachment.id,
-      entityTitle: file.originalname,
+      entityTitle: decodedOriginalName,
     });
 
     res.json(attachment);
@@ -728,7 +735,11 @@ app.get('/api/attachments/:id/download', async (req: Request, res: Response) => 
       return res.status(404).json({ error: 'File not found on disk' });
     }
 
-    res.download(filePath, attachment.originalName);
+    // Properly encode filename for Content-Disposition header (RFC 5987)
+    const encodedFilename = encodeURIComponent(attachment.originalName);
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedFilename}`);
+    res.setHeader('Content-Type', attachment.mimeType || 'application/octet-stream');
+    res.sendFile(filePath);
   } catch (error) {
     console.error('Error downloading file:', error);
     res.status(500).json({ error: 'Failed to download file' });

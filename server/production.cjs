@@ -3861,7 +3861,7 @@ var require_jsonwebtoken = __commonJS({
   }
 });
 
-// server/index.ts
+// server/production.ts
 var import_config = require("dotenv/config");
 var import_express2 = __toESM(require("express"), 1);
 var import_cors = __toESM(require("cors"), 1);
@@ -4025,7 +4025,7 @@ function attachAuditLog(req, res, next) {
   next();
 }
 
-// server/index.ts
+// server/production.ts
 var import_path = __toESM(require("path"), 1);
 var import_multer = __toESM(require("multer"), 1);
 var import_fs = __toESM(require("fs"), 1);
@@ -4042,7 +4042,8 @@ var storage = import_multer.default.diskStorage({
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + "-" + file.originalname);
+    const decodedName = Buffer.from(file.originalname, "latin1").toString("utf8").normalize("NFC");
+    cb(null, uniqueSuffix + "-" + decodedName);
   }
 });
 var upload = (0, import_multer.default)({
@@ -4339,8 +4340,9 @@ app.put("/api/goals/:id/complete", async (req, res) => {
       },
       include: {
         categories: true,
-        subGoals: true,
-        notes: true
+        subGoals: { orderBy: { createdAt: "asc" } },
+        notes: { orderBy: { createdAt: "desc" } },
+        attachments: { orderBy: { createdAt: "desc" } }
       }
     });
     await req.audit?.({
@@ -4544,10 +4546,11 @@ app.post("/api/goals/:id/attachments", upload.single("file"), async (req, res) =
       import_fs.default.unlinkSync(file.path);
       return res.status(404).json({ error: "Goal not found" });
     }
+    const decodedOriginalName = Buffer.from(file.originalname, "latin1").toString("utf8").normalize("NFC");
     const attachment = await prisma3.attachment.create({
       data: {
         fileName: file.filename,
-        originalName: file.originalname,
+        originalName: decodedOriginalName,
         mimeType: file.mimetype,
         size: file.size,
         goalId: id
@@ -4557,7 +4560,7 @@ app.post("/api/goals/:id/attachments", upload.single("file"), async (req, res) =
       action: "CREATE",
       entityType: "Attachment",
       entityId: attachment.id,
-      entityTitle: file.originalname
+      entityTitle: decodedOriginalName
     });
     res.json(attachment);
   } catch (error) {
@@ -4596,7 +4599,10 @@ app.get("/api/attachments/:id/download", async (req, res) => {
     if (!import_fs.default.existsSync(filePath)) {
       return res.status(404).json({ error: "File not found on disk" });
     }
-    res.download(filePath, attachment.originalName);
+    const encodedFilename = encodeURIComponent(attachment.originalName);
+    res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodedFilename}`);
+    res.setHeader("Content-Type", attachment.mimeType || "application/octet-stream");
+    res.sendFile(filePath);
   } catch (error) {
     console.error("Error downloading file:", error);
     res.status(500).json({ error: "Failed to download file" });
