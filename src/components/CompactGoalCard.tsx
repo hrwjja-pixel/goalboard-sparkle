@@ -7,6 +7,7 @@ import { LinkifiedText } from '@/components/LinkifiedText';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { api } from '@/lib/api';
+import { useState, useEffect } from 'react';
 import {
   HoverCard,
   HoverCardContent,
@@ -19,33 +20,6 @@ interface CompactGoalCardProps {
   categoryColors?: Record<string, string>;
   onToggleComplete?: (goalId: string, completed: boolean) => void;
 }
-
-// Helper function to blend color with background for opaque background
-const blendWithBackground = (hexColor: string, opacity: number): string => {
-  // Remove # if present
-  const hex = hexColor.replace('#', '');
-
-  // Parse RGB
-  const r = parseInt(hex.substring(0, 2), 16);
-  const g = parseInt(hex.substring(2, 4), 16);
-  const b = parseInt(hex.substring(4, 6), 16);
-
-  // Check if dark mode (check if html has 'dark' class)
-  const isDark = document.documentElement.classList.contains('dark');
-
-  // Blend with white (255, 255, 255) for light mode or black (0, 0, 0) for dark mode
-  const baseR = isDark ? 0 : 255;
-  const baseG = isDark ? 0 : 255;
-  const baseB = isDark ? 0 : 255;
-
-  const blendedR = Math.round(r * opacity + baseR * (1 - opacity));
-  const blendedG = Math.round(g * opacity + baseG * (1 - opacity));
-  const blendedB = Math.round(b * opacity + baseB * (1 - opacity));
-
-  // Convert back to hex
-  const toHex = (n: number) => n.toString(16).padStart(2, '0');
-  return `#${toHex(blendedR)}${toHex(blendedG)}${toHex(blendedB)}`;
-};
 
 const getCategoryStyle = (category: GoalCategory, categoryColors?: Record<string, string>) => {
   const color = categoryColors?.[category];
@@ -90,6 +64,29 @@ export const CompactGoalCard = ({ goal, onClick, categoryColors, onToggleComplet
     transition,
   };
 
+  // Track dark mode changes to re-render hover card background
+  const [isDarkMode, setIsDarkMode] = useState(
+    document.documentElement.classList.contains('dark')
+  );
+
+  useEffect(() => {
+    // Watch for theme changes on document.documentElement
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          setIsDarkMode(document.documentElement.classList.contains('dark'));
+        }
+      });
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '';
     return new Date(dateStr).toLocaleDateString('ko-KR', {
@@ -110,6 +107,31 @@ export const CompactGoalCard = ({ goal, onClick, categoryColors, onToggleComplet
   // Use first category for card styling
   const primaryCategory = goal.categories && goal.categories.length > 0 ? goal.categories[0] : 'SERVICE';
   const categoryStyle = getCategoryStyle(primaryCategory as GoalCategory, categoryColors);
+
+  // Calculate hover card background color based on current theme
+  const getHoverCardBackground = () => {
+    if (!categoryColors?.[primaryCategory]) {
+      return 'var(--card)';
+    }
+
+    const hexColor = categoryColors[primaryCategory];
+    const hex = hexColor.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+
+    const opacity = 0.06;
+    const baseR = isDarkMode ? 0 : 255;
+    const baseG = isDarkMode ? 0 : 255;
+    const baseB = isDarkMode ? 0 : 255;
+
+    const blendedR = Math.round(r * opacity + baseR * (1 - opacity));
+    const blendedG = Math.round(g * opacity + baseG * (1 - opacity));
+    const blendedB = Math.round(b * opacity + baseB * (1 - opacity));
+
+    const toHex = (n: number) => n.toString(16).padStart(2, '0');
+    return `#${toHex(blendedR)}${toHex(blendedG)}${toHex(blendedB)}`;
+  };
 
   return (
     <HoverCard openDelay={200} closeDelay={100}>
@@ -244,9 +266,7 @@ export const CompactGoalCard = ({ goal, onClick, categoryColors, onToggleComplet
         side="right"
         align="start"
         style={{
-          backgroundColor: categoryColors?.[primaryCategory]
-            ? blendWithBackground(categoryColors[primaryCategory], 0.06)  // 다크모드 지원: 검은색/흰색과 블렌딩
-            : 'var(--card)',
+          backgroundColor: getHoverCardBackground(),
           borderColor: categoryColors?.[primaryCategory] || categoryStyle.style?.borderColor,
           borderWidth: '2px',
           borderStyle: 'solid'
