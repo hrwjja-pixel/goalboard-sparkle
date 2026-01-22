@@ -49006,12 +49006,19 @@ app.put("/api/goals/:id", async (req, res) => {
     }
     const categoryRecords = await Promise.all(
       categories.map(async (categoryName) => {
-        let categoryRecord = await prisma3.category.findUnique({
-          where: { name: categoryName }
+        let categoryRecord = await prisma3.category.findFirst({
+          where: {
+            name: categoryName,
+            projectId: currentGoal.projectId
+          }
         });
         if (!categoryRecord) {
           categoryRecord = await prisma3.category.create({
-            data: { name: categoryName, color: "#6b7280" }
+            data: {
+              name: categoryName,
+              color: "#6b7280",
+              projectId: currentGoal.projectId
+            }
           });
         }
         return categoryRecord;

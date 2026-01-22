@@ -590,13 +590,20 @@ app.put('/api/goals/:id', async (req: AuthRequest, res: Response) => {
     // Find or create categories
     const categoryRecords = await Promise.all(
       categories.map(async (categoryName: string) => {
-        let categoryRecord = await prisma.category.findUnique({
-          where: { name: categoryName },
+        let categoryRecord = await prisma.category.findFirst({
+          where: {
+            name: categoryName,
+            projectId: currentGoal.projectId
+          },
         });
 
         if (!categoryRecord) {
           categoryRecord = await prisma.category.create({
-            data: { name: categoryName, color: '#6b7280' },
+            data: {
+              name: categoryName,
+              color: '#6b7280',
+              projectId: currentGoal.projectId
+            },
           });
         }
 
