@@ -49024,97 +49024,106 @@ app.put("/api/goals/:id", async (req, res) => {
         return categoryRecord;
       })
     );
-    if (subGoals) {
-      const incomingSubGoalIds = new Set(subGoals.map((sg) => sg.id).filter(Boolean));
-      const existingSubGoalIds = new Set(currentGoal.subGoals.map((sg) => sg.id));
-      const subGoalsToDelete = currentGoal.subGoals.filter((sg) => !incomingSubGoalIds.has(sg.id));
-      for (const sg of subGoalsToDelete) {
-        await prisma3.subGoal.delete({ where: { id: sg.id } });
+    const goal = await prisma3.$transaction(async (tx) => {
+      const goalInTransaction = await tx.goal.findUnique({
+        where: { id },
+        select: { version: true }
+      });
+      if (!goalInTransaction || version !== void 0 && goalInTransaction.version !== version) {
+        throw new Error("VERSION_CONFLICT");
       }
-      for (const sg of subGoals) {
-        if (sg.id && existingSubGoalIds.has(sg.id)) {
-          await prisma3.subGoal.update({
-            where: { id: sg.id },
-            data: {
-              title: sg.title,
-              description: sg.description,
-              owner: sg.owner,
-              progress: sg.progress,
-              startDate: sg.startDate,
-              dueDate: sg.dueDate,
-              statusNote: sg.statusNote,
-              version: { increment: 1 }
-            }
-          });
-        } else {
-          await prisma3.subGoal.create({
-            data: {
-              id: sg.id || void 0,
-              title: sg.title,
-              description: sg.description,
-              owner: sg.owner,
-              progress: sg.progress,
-              startDate: sg.startDate,
-              dueDate: sg.dueDate,
-              statusNote: sg.statusNote,
-              goalId: id
-            }
-          });
+      if (subGoals) {
+        const incomingSubGoalIds = new Set(subGoals.map((sg) => sg.id).filter(Boolean));
+        const existingSubGoalIds = new Set(currentGoal.subGoals.map((sg) => sg.id));
+        const subGoalsToDelete = currentGoal.subGoals.filter((sg) => !incomingSubGoalIds.has(sg.id));
+        for (const sg of subGoalsToDelete) {
+          await tx.subGoal.delete({ where: { id: sg.id } });
+        }
+        for (const sg of subGoals) {
+          if (sg.id && existingSubGoalIds.has(sg.id)) {
+            await tx.subGoal.update({
+              where: { id: sg.id },
+              data: {
+                title: sg.title,
+                description: sg.description,
+                owner: sg.owner,
+                progress: sg.progress,
+                startDate: sg.startDate,
+                dueDate: sg.dueDate,
+                statusNote: sg.statusNote,
+                version: { increment: 1 }
+              }
+            });
+          } else {
+            await tx.subGoal.create({
+              data: {
+                id: sg.id || void 0,
+                title: sg.title,
+                description: sg.description,
+                owner: sg.owner,
+                progress: sg.progress,
+                startDate: sg.startDate,
+                dueDate: sg.dueDate,
+                statusNote: sg.statusNote,
+                goalId: id
+              }
+            });
+          }
         }
       }
-    }
-    if (notes) {
-      const incomingNoteIds = new Set(notes.map((note) => note.id).filter(Boolean));
-      const existingNoteIds = new Set(currentGoal.notes.map((note) => note.id));
-      const notesToDelete = currentGoal.notes.filter((note) => !incomingNoteIds.has(note.id));
-      for (const note of notesToDelete) {
-        await prisma3.note.delete({ where: { id: note.id } });
-      }
-      for (const note of notes) {
-        if (note.id && existingNoteIds.has(note.id)) {
-          await prisma3.note.update({
-            where: { id: note.id },
-            data: {
-              content: note.content,
-              isPinned: note.isPinned,
-              version: { increment: 1 }
-            }
-          });
-        } else {
-          await prisma3.note.create({
-            data: {
-              id: note.id || void 0,
-              content: note.content,
-              isPinned: note.isPinned,
-              goalId: id,
-              createdAt: note.createdAt || /* @__PURE__ */ new Date()
-            }
-          });
+      if (notes) {
+        const incomingNoteIds = new Set(notes.map((note) => note.id).filter(Boolean));
+        const existingNoteIds = new Set(currentGoal.notes.map((note) => note.id));
+        const notesToDelete = currentGoal.notes.filter((note) => !incomingNoteIds.has(note.id));
+        for (const note of notesToDelete) {
+          await tx.note.delete({ where: { id: note.id } });
+        }
+        for (const note of notes) {
+          if (note.id && existingNoteIds.has(note.id)) {
+            await tx.note.update({
+              where: { id: note.id },
+              data: {
+                content: note.content,
+                isPinned: note.isPinned,
+                version: { increment: 1 }
+              }
+            });
+          } else {
+            await tx.note.create({
+              data: {
+                id: note.id || void 0,
+                content: note.content,
+                isPinned: note.isPinned,
+                goalId: id,
+                createdAt: note.createdAt || /* @__PURE__ */ new Date()
+              }
+            });
+          }
         }
       }
-    }
-    const updatedData = {
-      ...goalData,
-      completed: goalData.progress !== void 0 ? goalData.progress >= 100 : currentGoal.progress >= 100
-    };
-    const goal = await prisma3.goal.update({
-      where: { id },
-      data: {
-        ...updatedData,
-        categories: {
-          set: categoryRecords.map((cat) => ({ id: cat.id }))
+      const updatedData = {
+        ...goalData,
+        completed: goalData.progress !== void 0 ? goalData.progress >= 100 : currentGoal.progress >= 100
+      };
+      return await tx.goal.update({
+        where: { id },
+        data: {
+          ...updatedData,
+          categories: {
+            set: categoryRecords.map((cat) => ({ id: cat.id }))
+          },
+          version: { increment: 1 }
         },
-        version: { increment: 1 }
-      },
-      include: {
-        categories: true,
-        subGoals: {
-          orderBy: { createdAt: "asc" }
-        },
-        notes: {
-          orderBy: { createdAt: "desc" }
+        include: {
+          categories: true,
+          subGoals: {
+            orderBy: { createdAt: "asc" }
+          },
+          notes: {
+            orderBy: { createdAt: "desc" }
+          }
         }
-      }
+      });
     });
     await req.audit?.({
       action: "UPDATE",
@@ -49128,6 +49137,12 @@ app.put("/api/goals/:id", async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating goal:", error);
+    if (error.message === "VERSION_CONFLICT") {
+      return res.status(409).json({
+        error: "Conflict",
+        message: "\uB2E4\uB978 \uC0AC\uC6A9\uC790\uAC00 \uC774 \uBAA9\uD45C\uB97C \uC218\uC815\uD588\uC2B5\uB2C8\uB2E4. \uC0C8\uB85C\uACE0\uCE68 \uD6C4 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694."
+      });
+    }
     res.status(500).json({ error: "Failed to update goal" });
   }
 });
