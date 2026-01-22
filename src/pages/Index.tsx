@@ -612,6 +612,7 @@ const Index = () => {
         onSave={handleSaveGoal}
         onDelete={handleDeleteGoal}
         categories={categories}
+        categoryColors={categoryColors}
       />
 
       <AddGoalModal
@@ -619,6 +620,7 @@ const Index = () => {
         onClose={() => setIsAddModalOpen(false)}
         onAdd={handleAddGoal}
         categories={categories}
+        categoryColors={categoryColors}
       />
 
       <SettingsDialog

@@ -92,10 +92,15 @@ export const OverallSummary = ({
 
   return (
     <div className="bg-card rounded-xl shadow-lg p-5 mb-6 border border-border">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-10">
+      <div className="flex items-center gap-4 mb-4">
+        {/* Left: Fixed width - ProjectSelector */}
+        <div className="flex-shrink-0">
           <ProjectSelector />
-          {Object.keys(categoryStats).length > 0 && (
+        </div>
+
+        {/* Center: Flexible width - Category badges */}
+        {Object.keys(categoryStats).length > 0 && (
+          <div className="flex-1 min-w-0">
             <div className="flex flex-wrap gap-2">
               {Object.entries(categoryStats).map(([category, stats]) => {
                 const color = categoryColors?.[category] || '#6b7280';
@@ -123,18 +128,20 @@ export const OverallSummary = ({
                     >
                       {category}
                     </Badge>
-                    <span className="text-xs font-medium" style={{ color }}>
+                    <span className="text-xs font-medium whitespace-nowrap" style={{ color }}>
                       {stats.count}개 · {avgProgress}%
                     </span>
                   </div>
                 );
               })}
             </div>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
+          </div>
+        )}
+
+        {/* Right: Fixed width - Action buttons */}
+        <div className="flex items-center gap-3 flex-shrink-0">
           {viewMode === 'list' && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-md border bg-background/50 shadow-sm">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-md border bg-background/50 shadow-sm whitespace-nowrap">
               <span className="text-xs font-medium text-muted-foreground">완료({completedCount})</span>
               <Switch
                 checked={showCompleted}
@@ -146,7 +153,7 @@ export const OverallSummary = ({
           {onViewModeChange && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button size="default" variant="outline">
+                <Button size="default" variant="outline" className="whitespace-nowrap">
                   {viewMode === 'normal' && <><Maximize2 className="w-4 h-4 mr-2" />상세보기</>}
                   {viewMode === 'compact' && <><Minimize2 className="w-4 h-4 mr-2" />요약보기</>}
                   {viewMode === 'list' && <><List className="w-4 h-4 mr-2" />목록보기</>}
@@ -169,7 +176,7 @@ export const OverallSummary = ({
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-          <Button onClick={onAddGoal} size="default" className="shadow-lg">
+          <Button onClick={onAddGoal} size="default" className="shadow-lg whitespace-nowrap">
             <Plus className="w-4 h-4 mr-2" />
             새 목표 추가
           </Button>

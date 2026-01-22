@@ -62,26 +62,27 @@ export const CompactOverallSummary = ({
 
   return (
     <div className="bg-card rounded-lg shadow-md p-4 mb-4 border border-border">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 mb-3">
+        {/* Left: Fixed width - ProjectSelector and Stats */}
+        <div className="flex items-center gap-4 flex-shrink-0">
+          <ProjectSelector />
           <div className="flex items-center gap-4">
-            <ProjectSelector />
-            <div className="flex items-center gap-4 ml-2">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-primary" />
-                <span className="text-sm font-semibold text-primary">
-                  전체 평균: {overallAverage}%
-                </span>
-              </div>
-              <div className="text-sm text-muted-foreground">
-                총 {displayGoals.length}개 목표
-              </div>
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold text-primary whitespace-nowrap">
+                전체 평균: {overallAverage}%
+              </span>
+            </div>
+            <div className="text-sm text-muted-foreground whitespace-nowrap">
+              총 {displayGoals.length}개 목표
             </div>
           </div>
+        </div>
 
-          {/* Category Stats */}
-          {Object.keys(categoryStats).length > 0 && (
-            <div className="flex flex-wrap gap-2 ml-8">
+        {/* Center: Flexible width - Category Stats */}
+        {Object.keys(categoryStats).length > 0 && (
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap gap-2">
               {Object.entries(categoryStats).map(([category, stats]) => {
                 const color = categoryColors?.[category] || '#6b7280';
                 const avgProgress = Math.round(stats.totalProgress / stats.count);
@@ -107,18 +108,19 @@ export const CompactOverallSummary = ({
                     >
                       {category}
                     </Badge>
-                    <span className="text-xs font-medium" style={{ color }}>
+                    <span className="text-xs font-medium whitespace-nowrap" style={{ color }}>
                       {stats.count}개 · {avgProgress}%
                     </span>
                   </div>
                 );
               })}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 px-3 py-2 rounded-md border bg-background/50 shadow-sm">
+        {/* Right: Fixed width - Action buttons */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-md border bg-background/50 shadow-sm whitespace-nowrap">
             <span className="text-xs font-medium text-muted-foreground">완료({completedCount})</span>
             <Switch
               checked={showCompleted}
@@ -129,7 +131,7 @@ export const CompactOverallSummary = ({
           {onViewModeChange && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button size="default" variant="default" className="shadow-lg bg-primary text-primary-foreground hover:bg-primary/90">
+                <Button size="default" variant="default" className="shadow-lg bg-primary text-primary-foreground hover:bg-primary/90 whitespace-nowrap">
                   {viewMode === 'normal' && <><Maximize2 className="w-4 h-4 mr-2" />상세보기</>}
                   {viewMode === 'compact' && <><Minimize2 className="w-4 h-4 mr-2" />요약보기</>}
                   {viewMode === 'list' && <><List className="w-4 h-4 mr-2" />목록보기</>}
@@ -152,7 +154,7 @@ export const CompactOverallSummary = ({
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-          <Button onClick={onAddGoal} size="sm" variant="outline" className="shadow-md">
+          <Button onClick={onAddGoal} size="sm" variant="outline" className="shadow-md whitespace-nowrap">
             <Plus className="w-4 h-4 mr-2" />
             새 목표
           </Button>

@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Slider } from '@/components/ui/slider';
-import { Maximize2 } from 'lucide-react';
+import { Maximize2, Check } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -16,9 +16,10 @@ interface AddGoalModalProps {
   onClose: () => void;
   onAdd: (goal: Goal) => void;
   categories: GoalCategory[];
+  categoryColors?: Record<string, string>;
 }
 
-export const AddGoalModal = ({ open, onClose, onAdd, categories }: AddGoalModalProps) => {
+export const AddGoalModal = ({ open, onClose, onAdd, categories, categoryColors = {} }: AddGoalModalProps) => {
   const [newGoal, setNewGoal] = useState<Partial<Goal>>({
     title: '',
     description: '',
@@ -119,65 +120,67 @@ export const AddGoalModal = ({ open, onClose, onAdd, categories }: AddGoalModalP
           </div>
 
           <div>
-            <Label>카테고리 * (최소 1개, 최대 5개)</Label>
-            <div className="mt-2 space-y-2 p-3 border rounded-md bg-background">
+            <Label>카테고리 * (최소 1개, 최대 5개) - 선택됨: {newGoal.categories?.length || 0} / 5</Label>
+            <div className="mt-2 flex flex-wrap gap-2 p-3 border rounded-md bg-background">
               {categories.map((category) => {
                 const isSelected = newGoal.categories?.includes(category);
                 const canSelect = !isSelected && (newGoal.categories?.length || 0) < 5;
                 const canDeselect = isSelected && (newGoal.categories?.length || 0) > 1;
+                const color = categoryColors[category] || '#6b7280';
 
                 return (
-                  <label
+                  <button
                     key={category}
+                    type="button"
+                    disabled={(!canSelect && !isSelected) || (!canDeselect && isSelected)}
+                    onClick={() => {
+                      const newCategories = isSelected
+                        ? (newGoal.categories || []).filter(c => c !== category)
+                        : [...(newGoal.categories || []), category];
+                      setNewGoal({ ...newGoal, categories: newCategories });
+                    }}
                     className={cn(
-                      "flex items-center gap-2 p-2 rounded cursor-pointer transition-colors",
-                      isSelected ? "bg-primary/10" : "hover:bg-muted",
-                      !canSelect && !isSelected && "opacity-50 cursor-not-allowed"
+                      "relative px-3 py-1.5 rounded-md text-sm font-medium transition-all border-2",
+                      (!canSelect && !isSelected) && "opacity-50 cursor-not-allowed"
                     )}
+                    style={{
+                      backgroundColor: isSelected ? color : `${color}15`,
+                      borderColor: isSelected ? color : `${color}40`,
+                      color: isSelected ? '#ffffff' : color,
+                    }}
                   >
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      disabled={(!canSelect && !isSelected) || (!canDeselect && isSelected)}
-                      onChange={(e) => {
-                        const newCategories = e.target.checked
-                          ? [...(newGoal.categories || []), category]
-                          : (newGoal.categories || []).filter(c => c !== category);
-
-                        setNewGoal({ ...newGoal, categories: newCategories });
-                      }}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-sm font-medium">{category}</span>
-                  </label>
+                    {category}
+                    {isSelected && (
+                      <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center shadow-md">
+                        <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                      </span>
+                    )}
+                  </button>
                 );
               })}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              선택됨: {newGoal.categories?.length || 0} / 5
-            </p>
           </div>
 
-          <div className="p-4 bg-muted rounded-lg">
-            <div className="flex items-center gap-2 mb-3">
-              <Maximize2 className="w-5 h-5 text-primary" />
-              <Label className="text-base">카드 크기 (중요도)</Label>
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Maximize2 className="w-4 h-4 text-primary" />
+              <Label>카드 크기 (중요도)</Label>
             </div>
-            <div className="grid grid-cols-1 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {sizeOptions.map((option) => (
                 <button
                   key={option.value}
                   type="button"
                   onClick={() => setNewGoal({ ...newGoal, size: option.value })}
                   className={cn(
-                    'p-3 rounded-lg border-2 text-left transition-all',
+                    'p-2.5 rounded-lg border-2 text-left transition-all',
                     newGoal.size === option.value
                       ? 'border-primary bg-primary/10 shadow-md'
                       : 'border-border bg-card hover:border-primary/50'
                   )}
                 >
-                  <div className="font-semibold">{option.label}</div>
-                  <div className="text-xs text-muted-foreground mt-1">{option.description}</div>
+                  <div className="text-sm font-semibold">{option.label}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">{option.description}</div>
                 </button>
               ))}
             </div>
