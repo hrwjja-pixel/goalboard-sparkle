@@ -40,7 +40,6 @@ import { api } from '@/lib/api';
 import { useUserSettings, ViewMode } from '@/hooks/useUserSettings';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useProject } from '@/contexts/ProjectContext';
-import { ProjectSelector } from '@/components/ProjectSelector';
 
 const Index = () => {
   const { user, logout } = useAuth();
@@ -61,8 +60,6 @@ const Index = () => {
   const [viewMode, setViewMode] = useState<ViewMode>(userSettings.defaultViewMode);
   const [showCompleted, setShowCompleted] = useState(userSettings.showCompletedByDefault);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [dashboardTitle, setDashboardTitle] = useState('WEHAGO H 목표 대시보드');
-  const [dashboardSubtitle, setDashboardSubtitle] = useState('EMR개발본부 > WEHAGO H 개발센터');
   const [completedCount, setCompletedCount] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -81,11 +78,10 @@ const Index = () => {
       try {
         setIsLoading(true);
 
-        // Load categories, goals, and settings
-        const [categoriesData, allGoalsData, settings] = await Promise.all([
+        // Load categories and goals
+        const [categoriesData, allGoalsData] = await Promise.all([
           api.getCategories(currentProject.id),
           api.getGoals(currentProject.id, true),
-          api.getSettings(),
         ]);
 
         const categoryNames = categoriesData.map((c) => c.name);
@@ -106,10 +102,6 @@ const Index = () => {
         const completed = allGoalsData.filter(g => g.completed).length;
         setCompletedCount(completed);
         setGoals(allGoalsData);
-
-        // Load settings
-        setDashboardTitle(settings.dashboardTitle);
-        setDashboardSubtitle(settings.dashboardSubtitle);
       } catch (error) {
         console.error('Failed to load data:', error);
         // Fallback to default data
@@ -136,6 +128,11 @@ const Index = () => {
       return;
     }
 
+    // Skip if no current project
+    if (!currentProject) {
+      return;
+    }
+
     const refreshIntervalMs = userSettings.autoRefreshInterval * 1000;
 
     const refreshData = async () => {
@@ -149,8 +146,6 @@ const Index = () => {
         return;
       }
 
-      if (!currentProject) return;
-
       try {
         const allGoalsData = await api.getGoals(currentProject.id, true);
         setCompletedCount(allGoalsData.filter(g => g.completed).length);
@@ -162,17 +157,19 @@ const Index = () => {
     };
 
     // Initial delay before first refresh
-    const initialDelay = setTimeout(() => {
+    const initialTimeout = setTimeout(() => {
       refreshData();
-
-      // Set up interval for subsequent refreshes
-      const interval = setInterval(refreshData, refreshIntervalMs);
-
-      return () => clearInterval(interval);
     }, refreshIntervalMs);
 
-    return () => clearTimeout(initialDelay);
-  }, [isDetailModalOpen, isAddModalOpen, isSettingsOpen, isDragging, userSettings.enableAutoRefresh, userSettings.autoRefreshInterval]);
+    // Set up interval for subsequent refreshes
+    const refreshInterval = setInterval(refreshData, refreshIntervalMs);
+
+    // Cleanup both timeout and interval
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(refreshInterval);
+    };
+  }, [currentProject, isDetailModalOpen, isAddModalOpen, isSettingsOpen, isDragging, userSettings.enableAutoRefresh, userSettings.autoRefreshInterval]);
 
   // Filter and sort goals (for card views - excludes completed if showCompleted is false)
   const filteredGoals = useMemo(() => {
@@ -430,16 +427,6 @@ const Index = () => {
     }
   };
 
-  const handleSaveSettings = async (settings: { dashboardTitle: string; dashboardSubtitle: string }) => {
-    try {
-      await api.updateSettings(settings);
-      setDashboardTitle(settings.dashboardTitle);
-      setDashboardSubtitle(settings.dashboardSubtitle);
-    } catch (error) {
-      console.error('Failed to save settings:', error);
-      alert('설정 저장에 실패했습니다.');
-    }
-  };
 
   const handleCardClick = async (goal: Goal) => {
     // Clear previous selection first
@@ -516,11 +503,6 @@ const Index = () => {
     <ThemeProvider theme={userSettings.theme} onThemeChange={(theme) => updateUserSettings({ theme })}>
       <div className="min-h-screen bg-background">
       <div className="w-full px-6 py-6">
-        {/* Project selector header */}
-        <div className="mb-4 flex items-center justify-between">
-          <ProjectSelector />
-        </div>
-
         {viewMode === 'normal' || viewMode === 'list' ? (
           <OverallSummary
             goals={goals}
@@ -544,8 +526,6 @@ const Index = () => {
             showCompleted={showCompleted}
             onShowCompletedToggle={() => setShowCompleted(!showCompleted)}
             completedCount={completedCount}
-            dashboardTitle={dashboardTitle}
-            dashboardSubtitle={dashboardSubtitle}
             onSettingsClick={() => setIsSettingsOpen(true)}
           />
         ) : (
@@ -560,8 +540,6 @@ const Index = () => {
             showCompleted={showCompleted}
             onShowCompletedToggle={() => setShowCompleted(!showCompleted)}
             completedCount={completedCount}
-            dashboardTitle={dashboardTitle}
-            dashboardSubtitle={dashboardSubtitle}
             onSettingsClick={() => setIsSettingsOpen(true)}
           />
         )}
@@ -646,10 +624,7 @@ const Index = () => {
       <SettingsDialog
         open={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
-        onSaveGlobal={handleSaveSettings}
         onSaveUser={updateUserSettings}
-        currentTitle={dashboardTitle}
-        currentSubtitle={dashboardSubtitle}
         userSettings={userSettings}
       />
       </div>

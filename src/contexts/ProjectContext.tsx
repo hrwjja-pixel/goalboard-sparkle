@@ -7,6 +7,9 @@ interface ProjectContextType {
   currentProject: Project | null;
   setCurrentProject: (project: Project) => void;
   refreshProjects: () => Promise<void>;
+  createProject: (project: { name: string; description?: string }) => Promise<void>;
+  updateProject: (id: string, project: { name: string; description?: string }) => Promise<void>;
+  deleteProject: (id: string, adminPassword: string) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -60,6 +63,31 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
     localStorage.setItem('currentProjectId', project.id);
   };
 
+  const createProject = async (project: { name: string; description?: string }) => {
+    const newProject = await api.createProject(project);
+    await refreshProjects();
+    setCurrentProject(newProject);
+  };
+
+  const updateProject = async (id: string, project: { name: string; description?: string }) => {
+    await api.updateProject(id, project);
+    await refreshProjects();
+  };
+
+  const deleteProject = async (id: string, adminPassword: string) => {
+    await api.deleteProject(id, adminPassword);
+
+    // If deleting current project, switch to first available project
+    if (currentProject?.id === id) {
+      const remaining = projects.filter(p => p.id !== id);
+      if (remaining.length > 0) {
+        setCurrentProject(remaining[0]);
+      }
+    }
+
+    await refreshProjects();
+  };
+
   return (
     <ProjectContext.Provider
       value={{
@@ -67,6 +95,9 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
         currentProject,
         setCurrentProject,
         refreshProjects,
+        createProject,
+        updateProject,
+        deleteProject,
         isLoading,
       }}
     >

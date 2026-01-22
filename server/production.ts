@@ -147,6 +147,13 @@ app.put('/api/projects/:id', async (req: AuthRequest, res: Response) => {
 app.delete('/api/projects/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
+    const { adminPassword } = req.body;
+
+    // Verify admin password
+    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+    if (!adminPassword || adminPassword !== ADMIN_PASSWORD) {
+      return res.status(403).json({ error: 'Invalid admin password' });
+    }
 
     // Get project name before deletion for audit log
     const project = await prisma.project.findUnique({ where: { id } });

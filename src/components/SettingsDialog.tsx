@@ -4,56 +4,31 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useState, useEffect } from 'react';
 import { UserSettings, ViewMode, Theme } from '@/hooks/useUserSettings';
 
 interface SettingsDialogProps {
   open: boolean;
   onClose: () => void;
-  onSaveGlobal: (settings: { dashboardTitle: string; dashboardSubtitle: string }) => void;
   onSaveUser: (settings: UserSettings) => void;
-  currentTitle: string;
-  currentSubtitle: string;
   userSettings: UserSettings;
 }
 
 export const SettingsDialog = ({
   open,
   onClose,
-  onSaveGlobal,
   onSaveUser,
-  currentTitle,
-  currentSubtitle,
   userSettings
 }: SettingsDialogProps) => {
-  // Global settings
-  const [title, setTitle] = useState(currentTitle);
-  const [subtitle, setSubtitle] = useState(currentSubtitle);
-
   // User settings
   const [localUserSettings, setLocalUserSettings] = useState<UserSettings>(userSettings);
 
   useEffect(() => {
-    setTitle(currentTitle);
-    setSubtitle(currentSubtitle);
     setLocalUserSettings(userSettings);
-  }, [currentTitle, currentSubtitle, userSettings, open]);
-
-  const handleSaveGlobal = () => {
-    onSaveGlobal({
-      dashboardTitle: title,
-      dashboardSubtitle: subtitle,
-    });
-  };
+  }, [userSettings, open]);
 
   const handleSaveUser = () => {
     onSaveUser(localUserSettings);
-  };
-
-  const handleResetGlobal = () => {
-    setTitle('WEHAGO H 목표 대시보드');
-    setSubtitle('EMR개발본부 > WEHAGO H 개발센터');
   };
 
   const handleResetUser = () => {
@@ -78,17 +53,10 @@ export const SettingsDialog = ({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>설정</DialogTitle>
+          <DialogTitle>개인 설정</DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="user" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="user">개인 설정</TabsTrigger>
-            <TabsTrigger value="global">전체 설정</TabsTrigger>
-          </TabsList>
-
-          {/* 개인 설정 탭 */}
-          <TabsContent value="user" className="space-y-4 mt-4">
+        <div className="space-y-4 mt-4">
             <div className="grid gap-4">
               {/* 기본 뷰 모드 */}
               <div className="grid gap-2">
@@ -195,52 +163,7 @@ export const SettingsDialog = ({
                 </Button>
               </div>
             </div>
-          </TabsContent>
-
-          {/* 전체 설정 탭 */}
-          <TabsContent value="global" className="space-y-4 mt-4">
-            <div className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="title">대시보드 제목</Label>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="예: WEHAGO H 목표 대시보드"
-                />
-                <p className="text-xs text-muted-foreground">
-                  모든 사용자에게 표시되는 대시보드 제목입니다
-                </p>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="subtitle">부제목</Label>
-                <Input
-                  id="subtitle"
-                  value={subtitle}
-                  onChange={(e) => setSubtitle(e.target.value)}
-                  placeholder="예: EMR개발본부 > WEHAGO H 개발센터"
-                />
-                <p className="text-xs text-muted-foreground">
-                  대시보드 제목 아래 표시되는 부제목입니다
-                </p>
-              </div>
-            </div>
-
-            <div className="flex justify-between pt-4">
-              <Button variant="outline" onClick={handleResetGlobal}>
-                기본값 복원
-              </Button>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={handleClose}>
-                  취소
-                </Button>
-                <Button onClick={() => { handleSaveGlobal(); handleClose(); }}>
-                  저장
-                </Button>
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
+          </div>
       </DialogContent>
     </Dialog>
   );

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { FilterBar } from '@/components/FilterBar';
+import { ProjectSelector } from '@/components/ProjectSelector';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,8 +35,6 @@ interface OverallSummaryProps {
   showCompleted: boolean;
   onShowCompletedToggle: () => void;
   completedCount: number;
-  dashboardTitle?: string;
-  dashboardSubtitle?: string;
   onSettingsClick?: () => void;
 }
 
@@ -61,8 +60,6 @@ export const OverallSummary = ({
   showCompleted,
   onShowCompletedToggle,
   completedCount,
-  dashboardTitle = 'WEHAGO H 목표 대시보드',
-  dashboardSubtitle = 'EMR개발본부 > WEHAGO H 개발센터',
   onSettingsClick
 }: OverallSummaryProps) => {
   // Filter goals based on showCompleted toggle
@@ -97,10 +94,7 @@ export const OverallSummary = ({
     <div className="bg-card rounded-xl shadow-lg p-5 mb-6 border border-border">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-10">
-          <div>
-            <h2 className="text-2xl font-bold mb-1">{dashboardTitle}</h2>
-            <p className="text-sm text-muted-foreground">{dashboardSubtitle}</p>
-          </div>
+          <ProjectSelector />
           {Object.keys(categoryStats).length > 0 && (
             <div className="flex flex-wrap gap-2">
               {Object.entries(categoryStats).map(([category, stats]) => {

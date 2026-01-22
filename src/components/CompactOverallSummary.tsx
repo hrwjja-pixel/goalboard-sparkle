@@ -4,6 +4,7 @@ import { TrendingUp, Plus, Maximize2, List, Minimize2, ChevronDown, Settings } f
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { ProjectSelector } from '@/components/ProjectSelector';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,8 +23,6 @@ interface CompactOverallSummaryProps {
   showCompleted: boolean;
   onShowCompletedToggle: () => void;
   completedCount: number;
-  dashboardTitle?: string;
-  dashboardSubtitle?: string;
   onSettingsClick?: () => void;
 }
 
@@ -38,8 +37,6 @@ export const CompactOverallSummary = ({
   showCompleted,
   onShowCompletedToggle,
   completedCount,
-  dashboardTitle = 'WEHAGO H 목표 대시보드',
-  dashboardSubtitle = 'EMR개발본부 > WEHAGO H 개발센터',
   onSettingsClick
 }: CompactOverallSummaryProps) => {
   // Filter goals based on showCompleted toggle
@@ -67,9 +64,9 @@ export const CompactOverallSummary = ({
     <div className="bg-card rounded-lg shadow-md p-4 mb-4 border border-border">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-4">
-          <div>
-            <h2 className="text-lg font-bold mb-1">{dashboardTitle}</h2>
-            <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4">
+            <ProjectSelector />
+            <div className="flex items-center gap-4 ml-2">
               <div className="flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-primary" />
                 <span className="text-sm font-semibold text-primary">

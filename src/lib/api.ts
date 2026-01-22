@@ -64,12 +64,18 @@ export const api = {
     return response.json();
   },
 
-  async deleteProject(id: string): Promise<void> {
+  async deleteProject(id: string, adminPassword: string): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/api/projects/${id}`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
+      body: JSON.stringify({ adminPassword }),
     });
-    if (!response.ok) throw new Error('Failed to delete project');
+    if (!response.ok) {
+      if (response.status === 403) {
+        throw new Error('Invalid admin password');
+      }
+      throw new Error('Failed to delete project');
+    }
   },
 
   // Categories
