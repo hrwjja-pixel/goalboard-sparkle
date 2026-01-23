@@ -44,7 +44,7 @@ export const api = {
     return response.json();
   },
 
-  async createProject(project: { name: string; description?: string; dashboardTitle?: string; dashboardSubtitle?: string }): Promise<Project> {
+  async createProject(project: { name: string; description?: string; dashboardTitle?: string; dashboardSubtitle?: string; parentId?: string | null }): Promise<Project> {
     const response = await fetch(`${API_BASE_URL}/api/projects`, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -123,8 +123,8 @@ export const api = {
   },
 
   // Goals
-  async getGoals(projectId: string, showCompleted: boolean = false): Promise<Goal[]> {
-    const url = `${API_BASE_URL}/api/goals?projectId=${projectId}&showCompleted=${showCompleted}`;
+  async getGoals(projectId: string, showCompleted: boolean = false, includeDescendants: boolean = false): Promise<Goal[]> {
+    const url = `${API_BASE_URL}/api/goals?projectId=${projectId}&showCompleted=${showCompleted}&includeDescendants=${includeDescendants}`;
     const response = await fetch(url);
     if (!response.ok) throw new Error('Failed to fetch goals');
     return response.json();

@@ -7,6 +7,9 @@ export interface Project {
   description?: string;
   dashboardTitle: string;
   dashboardSubtitle: string;
+  parentId?: string | null;
+  parent?: Project | null;
+  children?: Project[];
   createdAt: string;
   updatedAt: string;
 }
@@ -48,6 +51,7 @@ export interface Goal {
   description?: string;
   owner: string;
   projectId?: string; // 프로젝트 ID
+  project?: { id: string; name: string }; // 프로젝트 정보 (하위 포함 모드용)
   categories: GoalCategory[]; // 최소 1개, 최대 5개
   progress: number;
   size: GoalSize; // 카드 크기 = 중요도

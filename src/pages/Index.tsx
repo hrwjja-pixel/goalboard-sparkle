@@ -44,7 +44,7 @@ import { useProject } from '@/contexts/ProjectContext';
 const Index = () => {
   const { user, logout } = useAuth();
   const { settings: userSettings, updateSettings: updateUserSettings } = useUserSettings();
-  const { currentProject } = useProject();
+  const { currentProject, includeDescendants } = useProject();
 
   const [goals, setGoals] = useState<Goal[]>([]);
   const [categories, setCategories] = useState<GoalCategory[]>([]);
@@ -81,7 +81,7 @@ const Index = () => {
         // Load categories and goals
         const [categoriesData, allGoalsData] = await Promise.all([
           api.getCategories(currentProject.id),
-          api.getGoals(currentProject.id, true),
+          api.getGoals(currentProject.id, true, includeDescendants),
         ]);
 
         const categoryNames = categoriesData.map((c) => c.name);
@@ -119,7 +119,7 @@ const Index = () => {
     };
 
     loadData();
-  }, [currentProject]);
+  }, [currentProject, includeDescendants]);
 
   // Background data refresh - only when safe to update
   useEffect(() => {
@@ -147,7 +147,7 @@ const Index = () => {
       }
 
       try {
-        const allGoalsData = await api.getGoals(currentProject.id, true);
+        const allGoalsData = await api.getGoals(currentProject.id, true, includeDescendants);
         setCompletedCount(allGoalsData.filter(g => g.completed).length);
         setGoals(allGoalsData);
         console.log('Background refresh completed');
@@ -169,7 +169,7 @@ const Index = () => {
       clearTimeout(initialTimeout);
       clearInterval(refreshInterval);
     };
-  }, [currentProject, isDetailModalOpen, isAddModalOpen, isSettingsOpen, isDragging, userSettings.enableAutoRefresh, userSettings.autoRefreshInterval]);
+  }, [currentProject, includeDescendants, isDetailModalOpen, isAddModalOpen, isSettingsOpen, isDragging, userSettings.enableAutoRefresh, userSettings.autoRefreshInterval]);
 
   // Filter and sort goals (for card views - excludes completed if showCompleted is false)
   const filteredGoals = useMemo(() => {
@@ -256,7 +256,7 @@ const Index = () => {
       // Always refresh all goals after save to ensure all users see latest data
       // IMPORTANT: Always fetch ALL goals (true), filtering is done client-side
       if (!currentProject) return;
-      const allGoalsData = await api.getGoals(currentProject.id, true);
+      const allGoalsData = await api.getGoals(currentProject.id, true, includeDescendants);
       setCompletedCount(allGoalsData.filter(g => g.completed).length);
       setGoals(allGoalsData);
     } catch (error: any) {
@@ -279,7 +279,7 @@ const Index = () => {
           // Reload all goals to get the latest data
           // IMPORTANT: Always fetch ALL goals (true), filtering is done client-side
           if (!currentProject) return;
-          const allGoalsData = await api.getGoals(currentProject.id, true);
+          const allGoalsData = await api.getGoals(currentProject.id, true, includeDescendants);
           setCompletedCount(allGoalsData.filter(g => g.completed).length);
           setGoals(allGoalsData);
         }
@@ -309,7 +309,7 @@ const Index = () => {
       await api.toggleGoalCompletion(goalId, completed);
 
       // Reload all goals and update completed count
-      const allGoalsData = await api.getGoals(currentProject.id, true);
+      const allGoalsData = await api.getGoals(currentProject.id, true, includeDescendants);
       const completedTotal = allGoalsData.filter(g => g.completed).length;
       setCompletedCount(completedTotal);
       setGoals(allGoalsData);

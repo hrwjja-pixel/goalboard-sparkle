@@ -1,14 +1,18 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Project } from '@/types/goal';
 import { api } from '@/lib/api';
+import { buildProjectTree } from '@/lib/projectTree';
 
 interface ProjectContextType {
   projects: Project[];
+  projectTree: Project[];
   currentProject: Project | null;
   setCurrentProject: (project: Project) => void;
+  includeDescendants: boolean;
+  setIncludeDescendants: (value: boolean) => void;
   refreshProjects: () => Promise<void>;
-  createProject: (project: { name: string; description?: string }) => Promise<void>;
-  updateProject: (id: string, project: { name: string; description?: string }) => Promise<void>;
+  createProject: (project: { name: string; description?: string; parentId?: string | null }) => Promise<void>;
+  updateProject: (id: string, project: { name?: string; description?: string; parentId?: string | null }) => Promise<void>;
   deleteProject: (id: string, adminPassword: string) => Promise<void>;
   isLoading: boolean;
 }
@@ -29,13 +33,22 @@ interface ProjectProviderProps {
 
 export const ProjectProvider = ({ children }: ProjectProviderProps) => {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [projectTree, setProjectTree] = useState<Project[]>([]);
   const [currentProject, setCurrentProjectState] = useState<Project | null>(null);
+  const [includeDescendants, setIncludeDescendantsState] = useState<boolean>(() => {
+    const stored = localStorage.getItem('includeDescendants');
+    return stored === 'true';
+  });
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshProjects = async () => {
     try {
       const fetchedProjects = await api.getProjects();
       setProjects(fetchedProjects);
+
+      // Build tree structure
+      const tree = buildProjectTree(fetchedProjects);
+      setProjectTree(tree);
 
       // If no current project is set, or current project no longer exists, set to first project
       const storedProjectId = localStorage.getItem('currentProjectId');
@@ -63,13 +76,18 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
     localStorage.setItem('currentProjectId', project.id);
   };
 
-  const createProject = async (project: { name: string; description?: string }) => {
+  const setIncludeDescendants = (value: boolean) => {
+    setIncludeDescendantsState(value);
+    localStorage.setItem('includeDescendants', value.toString());
+  };
+
+  const createProject = async (project: { name: string; description?: string; parentId?: string | null }) => {
     const newProject = await api.createProject(project);
     await refreshProjects();
     setCurrentProject(newProject);
   };
 
-  const updateProject = async (id: string, project: { name: string; description?: string }) => {
+  const updateProject = async (id: string, project: { name?: string; description?: string; parentId?: string | null }) => {
     await api.updateProject(id, project);
     await refreshProjects();
   };
@@ -92,8 +110,11 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
     <ProjectContext.Provider
       value={{
         projects,
+        projectTree,
         currentProject,
         setCurrentProject,
+        includeDescendants,
+        setIncludeDescendants,
         refreshProjects,
         createProject,
         updateProject,

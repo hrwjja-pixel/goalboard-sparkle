@@ -9,8 +9,19 @@ import authRoutes from './routes/auth';
 import { optionalAuth, AuthRequest } from './middleware/auth';
 import { attachAuditLog } from './middleware/audit';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import multer from 'multer';
 import fs from 'fs';
+
+// ES module __dirname polyfill (only needed when running as ES module)
+let __dirname: string;
+try {
+  // @ts-ignore - __dirname is available in CommonJS
+  __dirname = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
+} catch {
+  // Fallback for CommonJS
+  __dirname = __dirname;
+}
 
 const app = express();
 const prisma = new PrismaClient();
@@ -74,6 +85,33 @@ app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'ok' });
 });
 
+// Helper functions for project hierarchy
+async function isDescendant(targetId: string, ancestorId: string): Promise<boolean> {
+  const project = await prisma.project.findUnique({
+    where: { id: targetId },
+    select: { parentId: true }
+  });
+
+  if (!project || !project.parentId) return false;
+  if (project.parentId === ancestorId) return true;
+
+  return isDescendant(project.parentId, ancestorId);
+}
+
+async function getDescendantIds(projectId: string): Promise<string[]> {
+  const children = await prisma.project.findMany({
+    where: { parentId: projectId },
+    select: { id: true }
+  });
+
+  const childIds = children.map(c => c.id);
+  const descendantIds = await Promise.all(
+    childIds.map(id => getDescendantIds(id))
+  );
+
+  return [...childIds, ...descendantIds.flat()];
+}
+
 // Project endpoints
 app.get('/api/projects', async (req: Request, res: Response) => {
   try {
@@ -89,13 +127,23 @@ app.get('/api/projects', async (req: Request, res: Response) => {
 
 app.post('/api/projects', async (req: AuthRequest, res: Response) => {
   try {
-    const { name, description, dashboardTitle, dashboardSubtitle } = req.body;
+    const { name, description, dashboardTitle, dashboardSubtitle, parentId } = req.body;
+
+    // Validate parentId if provided
+    if (parentId) {
+      const parent = await prisma.project.findUnique({ where: { id: parentId } });
+      if (!parent) {
+        return res.status(400).json({ error: 'Parent project not found' });
+      }
+    }
+
     const project = await prisma.project.create({
       data: {
         name,
         description,
         dashboardTitle: dashboardTitle || '목표 대시보드',
         dashboardSubtitle: dashboardSubtitle || '',
+        parentId: parentId || null,
       },
     });
 
@@ -117,12 +165,28 @@ app.post('/api/projects', async (req: AuthRequest, res: Response) => {
 app.put('/api/projects/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, description, dashboardTitle, dashboardSubtitle } = req.body;
+    const { name, description, dashboardTitle, dashboardSubtitle, parentId } = req.body;
+
+    // Validate circular reference
+    if (parentId !== undefined && parentId !== null) {
+      if (parentId === id) {
+        return res.status(400).json({ error: 'Cannot set project as its own parent' });
+      }
+
+      const isCircular = await isDescendant(parentId, id);
+      if (isCircular) {
+        return res.status(400).json({
+          error: 'Cannot set descendant as parent (circular reference)'
+        });
+      }
+    }
+
     const updateData: any = {};
     if (name !== undefined) updateData.name = name;
     if (description !== undefined) updateData.description = description;
     if (dashboardTitle !== undefined) updateData.dashboardTitle = dashboardTitle;
     if (dashboardSubtitle !== undefined) updateData.dashboardSubtitle = dashboardSubtitle;
+    if (parentId !== undefined) updateData.parentId = parentId;
 
     const project = await prisma.project.update({
       where: { id },
@@ -153,6 +217,18 @@ app.delete('/api/projects/:id', async (req: AuthRequest, res: Response) => {
     const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
     if (!adminPassword || adminPassword !== ADMIN_PASSWORD) {
       return res.status(403).json({ error: 'Invalid admin password' });
+    }
+
+    // Check for child projects
+    const childrenCount = await prisma.project.count({
+      where: { parentId: id }
+    });
+
+    if (childrenCount > 0) {
+      return res.status(400).json({
+        error: 'Cannot delete project with child projects',
+        details: `This project has ${childrenCount} child project(s). Please delete or move them first.`
+      });
     }
 
     // Get project name before deletion for audit log
@@ -285,8 +361,18 @@ app.get('/api/goals', async (req: Request, res: Response) => {
     }
 
     const showCompleted = req.query.showCompleted === 'true';
+    const includeDescendants = req.query.includeDescendants === 'true';
 
-    const whereClause: any = { projectId };
+    let projectIds = [projectId];
+
+    if (includeDescendants) {
+      const descendants = await getDescendantIds(projectId);
+      projectIds = [projectId, ...descendants];
+    }
+
+    const whereClause: any = {
+      projectId: { in: projectIds }
+    };
     if (!showCompleted) {
       whereClause.completed = false;
     }
@@ -304,6 +390,9 @@ app.get('/api/goals', async (req: Request, res: Response) => {
         attachments: {
           orderBy: { createdAt: 'desc' },
         },
+        project: {
+          select: { id: true, name: true }
+        },
       },
       orderBy: { order: 'asc' },
     });
@@ -314,6 +403,8 @@ app.get('/api/goals', async (req: Request, res: Response) => {
       title: goal.title,
       description: goal.description,
       owner: goal.owner,
+      projectId: goal.projectId,
+      project: goal.project,
       categories: goal.categories.map(cat => cat.name),
       progress: goal.progress,
       size: goal.size,

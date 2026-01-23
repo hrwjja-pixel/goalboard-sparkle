@@ -16,12 +16,16 @@ model Project {
   description       String?
   dashboardTitle    String     @default("목표 대시보드")
   dashboardSubtitle String     @default("")
+  parentId          String?
+  parent            Project?   @relation("ProjectHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children          Project[]  @relation("ProjectHierarchy")
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
   goals             Goal[]
   categories        Category[]
 
   @@index([name])
+  @@index([parentId])
 }
 
 model Category {
