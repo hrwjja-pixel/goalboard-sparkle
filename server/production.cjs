@@ -3875,13 +3875,15 @@ var import_passport_google_oauth20 = require("passport-google-oauth20");
 var import_client = require("@prisma/client");
 var prisma = new import_client.PrismaClient();
 function setupPassport() {
-  import_passport.default.use(
-    new import_passport_google_oauth20.Strategy(
-      {
-        clientID: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        callbackURL: process.env.GOOGLE_CALLBACK_URL
-      },
+  // Only setup Google OAuth if credentials are provided
+  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_CALLBACK_URL) {
+    import_passport.default.use(
+      new import_passport_google_oauth20.Strategy(
+        {
+          clientID: process.env.GOOGLE_CLIENT_ID,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          callbackURL: process.env.GOOGLE_CALLBACK_URL
+        },
       async (accessToken, refreshToken, profile, done) => {
         try {
           let user = await prisma.user.findUnique({
@@ -3912,6 +3914,9 @@ function setupPassport() {
       }
     )
   );
+  } else {
+    console.log('\u26A0\uFE0F  Google OAuth not configured - skipping authentication setup');
+  }
   import_passport.default.serializeUser((user, done) => {
     done(null, user.id);
   });

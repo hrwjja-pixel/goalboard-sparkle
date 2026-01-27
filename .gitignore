@@ -43,3 +43,13 @@ server/fix-*.ts
 
 # Uploaded files
 uploads/
+
+# Production deployment
+dashboard-production/
+dashboard-production.tar.gz
+*.tar.gz
+
+# Temporary files
+create-empty-db.js
+.env.production
+.claude

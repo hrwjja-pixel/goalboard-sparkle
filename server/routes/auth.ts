@@ -5,6 +5,16 @@ import { authenticateJWT, AuthRequest } from '../middleware/auth';
 
 const router = express.Router();
 
+// Check if OAuth is enabled
+router.get('/config', (req: Request, res: Response) => {
+  const oauthEnabled = !!(
+    process.env.GOOGLE_CLIENT_ID &&
+    process.env.GOOGLE_CLIENT_SECRET &&
+    process.env.GOOGLE_CALLBACK_URL
+  );
+  res.json({ oauthEnabled });
+});
+
 // Google OAuth login
 router.get(
   '/google',

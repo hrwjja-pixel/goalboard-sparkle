@@ -25,13 +25,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Load token from localStorage on mount
   useEffect(() => {
-    const storedToken = localStorage.getItem('auth_token');
-    if (storedToken) {
-      setToken(storedToken);
-      fetchUserInfo(storedToken);
-    } else {
-      setIsLoading(false);
-    }
+    const checkAuthConfig = async () => {
+      try {
+        // Check if OAuth is configured on the server
+        const response = await fetch('/api/auth/config');
+        const config = await response.json();
+
+        if (!config.oauthEnabled) {
+          // OAuth not configured - skip authentication
+          console.log('AuthContext: OAuth not configured, skipping authentication');
+          setUser({
+            userId: 'anonymous',
+            email: 'anonymous@localhost',
+            name: 'Anonymous User',
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        // OAuth is configured - check for stored token
+        const storedToken = localStorage.getItem('auth_token');
+        if (storedToken) {
+          setToken(storedToken);
+          fetchUserInfo(storedToken);
+        } else {
+          setIsLoading(false);
+        }
+      } catch (error) {
+        // If config endpoint fails, assume OAuth is not configured
+        console.log('AuthContext: Failed to check auth config, skipping authentication');
+        setUser({
+          userId: 'anonymous',
+          email: 'anonymous@localhost',
+          name: 'Anonymous User',
+        });
+        setIsLoading(false);
+      }
+    };
+
+    checkAuthConfig();
   }, []);
 
   // Check for token in URL (from OAuth callback)

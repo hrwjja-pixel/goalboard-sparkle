@@ -73,7 +73,11 @@ const Index = () => {
   // Load categories and goals from API
   useEffect(() => {
     const loadData = async () => {
-      if (!currentProject) return;
+      if (!currentProject) {
+        console.log('Index: No current project, setting isLoading to false');
+        setIsLoading(false);
+        return;
+      }
 
       try {
         setIsLoading(true);
@@ -487,12 +491,47 @@ const Index = () => {
     }
   };
 
-  if (isLoading) {
+  const { projects, isLoading: projectsLoading, createProject } = useProject();
+
+  if (isLoading || projectsLoading) {
     return (
       <ThemeProvider theme={userSettings.theme} onThemeChange={(theme) => updateUserSettings({ theme })}>
         <div className="min-h-screen bg-background flex items-center justify-center">
           <div className="text-center">
             <p className="text-xl text-muted-foreground">데이터 로딩 중...</p>
+          </div>
+        </div>
+      </ThemeProvider>
+    );
+  }
+
+  // If no projects exist, show a welcome screen
+  if (!currentProject && projects.length === 0) {
+    return (
+      <ThemeProvider theme={userSettings.theme} onThemeChange={(theme) => updateUserSettings({ theme })}>
+        <div className="min-h-screen bg-background flex items-center justify-center p-4">
+          <div className="text-center max-w-md">
+            <h1 className="text-3xl font-bold mb-4">프로젝트가 없습니다</h1>
+            <p className="text-muted-foreground mb-6">
+              시작하려면 첫 번째 프로젝트를 생성하세요.
+            </p>
+            <Button
+              onClick={async () => {
+                const name = prompt('프로젝트 이름을 입력하세요:', 'My First Project');
+                if (name) {
+                  try {
+                    await createProject({ name, description: '' });
+                  } catch (error) {
+                    console.error('Failed to create project:', error);
+                    alert('프로젝트 생성에 실패했습니다.');
+                  }
+                }
+              }}
+              size="lg"
+            >
+              <Plus className="mr-2 h-5 w-5" />
+              첫 프로젝트 만들기
+            </Button>
           </div>
         </div>
       </ThemeProvider>
