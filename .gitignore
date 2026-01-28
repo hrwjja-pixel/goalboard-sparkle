@@ -34,6 +34,7 @@ prisma/*.db-journal
 # Environment variables
 .env
 .env.local
+.env.deploy
 
 # Windows Service files
 daemon/
