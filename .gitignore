@@ -53,6 +53,4 @@ dashboard-production.tar.gz
 create-empty-db.js
 .env.production
 .claude
-etc/add_hosts/goal.wehagoh.com.bat
-etc/add_hosts/goal.wehagoh.com.bat.zip
-etc/add_hosts/goal.wehagoh.com.command
+etc/add_hosts/
