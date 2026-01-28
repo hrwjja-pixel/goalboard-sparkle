@@ -35,6 +35,10 @@ prisma/*.db-journal
 .env
 .env.local
 .env.deploy
+scripts/.env.backup
+
+# Backups
+backups/
 
 # Windows Service files
 daemon/

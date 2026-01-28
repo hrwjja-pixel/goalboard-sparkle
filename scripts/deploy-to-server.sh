@@ -1,22 +1,27 @@
 #!/bin/bash
 
 # 오프라인 운영 서버 자동 배포 스크립트
-# 사용법: ./deploy-to-server.sh
+# 사용법: cd scripts && ./deploy-to-server.sh
 
 set -e
 
+# 스크립트 디렉토리와 프로젝트 루트 경로
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 # 배포 설정 파일 로드
-if [ ! -f ".env.deploy" ]; then
+if [ ! -f "$SCRIPT_DIR/.env.deploy" ]; then
     echo "❌ .env.deploy 파일이 없습니다!"
     echo ""
     echo "다음 명령으로 생성하세요:"
+    echo "  cd scripts/"
     echo "  cp .env.deploy.example .env.deploy"
     echo "  vi .env.deploy  # 서버 정보 입력"
     exit 1
 fi
 
 # .env.deploy 파일에서 설정 읽기
-source .env.deploy
+source "$SCRIPT_DIR/.env.deploy"
 
 SERVER_USER="${DEPLOY_SERVER_USER}"
 SERVER_HOST="${DEPLOY_SERVER_HOST}"
@@ -31,8 +36,25 @@ echo "배포 대상: ${SERVER_USER}@${SERVER_HOST}:${SERVER_PORT}"
 echo "배포 경로: ${SERVER_PATH}"
 echo ""
 
-# 1. 로컬에서 완전한 프로덕션 빌드 준비
+# 1. 배포 전 자동 백업
+echo "💾 배포 전 데이터베이스 백업 중..."
+SSH_OPTS="-p ${SERVER_PORT}"
+
+ssh ${SSH_OPTS} ${SERVER_USER}@${SERVER_HOST} << 'BACKUP_EOF'
+if [ -f /home/ktg2926/dashboard/scripts/backup-db-server.sh ]; then
+    cd /home/ktg2926/dashboard/scripts
+    ./backup-db-server.sh
+    echo "✅ 백업 완료"
+else
+    echo "⚠️  백업 스크립트가 없습니다. 계속 진행합니다..."
+fi
+BACKUP_EOF
+
+echo ""
+
+# 2. 로컬에서 완전한 프로덕션 빌드 준비
 echo "📦 프로덕션 빌드 준비 중..."
+cd "$PROJECT_ROOT"
 ./prepare-production.sh
 
 if [ $? -ne 0 ]; then
@@ -42,9 +64,9 @@ fi
 echo "✅ 빌드 완료"
 echo ""
 
-PROD_DIR="dashboard-production"
+PROD_DIR="$PROJECT_ROOT/dashboard-production"
 
-# 2. rsync로 전체 폴더 동기화
+# 3. rsync로 전체 폴더 동기화
 echo "🚀 파일 전송 중..."
 echo ""
 
@@ -72,7 +94,7 @@ echo ""
 echo "✅ 파일 전송 완료"
 echo ""
 
-# 3. 원격 서버에서 서비스 재시작만 수행
+# 4. 원격 서버에서 서비스 재시작만 수행
 echo "🔄 운영 서버 재시작 중..."
 echo ""
 
