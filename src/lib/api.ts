@@ -7,13 +7,16 @@ const getApiBaseUrl = () => {
     return import.meta.env.VITE_API_URL;
   }
 
-  // 개발 모드: Vite proxy 사용 (같은 호스트로 요청)
+  // VITE_BASE_URL을 고려하여 API 경로 설정
+  const baseUrl = import.meta.env.BASE_URL || '/';
+
+  // 개발 모드: Vite proxy 사용 (BASE_URL 고려)
   if (import.meta.env.DEV) {
-    return '';  // 상대 경로 사용, Vite proxy가 /api를 localhost:3001로 전달
+    return baseUrl === '/' ? '' : baseUrl.replace(/\/$/, '');
   }
 
-  // 프로덕션: 현재 브라우저와 같은 호스트/포트 사용 (상대 경로)
-  return '';
+  // 프로덕션: 현재 브라우저와 같은 호스트/포트 사용 (BASE_URL 고려)
+  return baseUrl === '/' ? '' : baseUrl.replace(/\/$/, '');
 };
 
 const API_BASE_URL = getApiBaseUrl();
