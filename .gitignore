@@ -54,3 +54,11 @@ create-empty-db.js
 .env.production
 .claude
 etc/add_hosts/
+
+# Package manager lock files (if using npm)
+bun.lockb
+
+# Windows scripts
+*.bat
+install-service.cjs
+uninstall-service.cjs
