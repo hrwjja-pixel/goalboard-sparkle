@@ -40,6 +40,9 @@ scripts/.env.backup
 # Backups
 backups/
 
+# Internal documents (private)
+docs/
+
 # Windows Service files
 daemon/
 
