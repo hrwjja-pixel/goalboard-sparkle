@@ -6,12 +6,26 @@ set -e
 
 echo "📦 Preparing production server bundle..."
 
+# 1. Build frontend
+echo "🔨 Building frontend..."
+npm run build
+echo "✅ Frontend build complete"
+
+# 2. Build server (production.ts -> production.cjs)
+echo "🔨 Building server..."
+npm run build:server
+echo "✅ Server build complete"
+
 # Create temporary production directory
 PROD_DIR="dashboard-production"
 rm -rf "$PROD_DIR"
 mkdir -p "$PROD_DIR"
 
 echo "✅ Created production directory: $PROD_DIR"
+
+# Copy frontend build
+echo "📋 Copying frontend build..."
+cp -r dist "$PROD_DIR/"
 
 # Copy server files
 echo "📋 Copying server files..."

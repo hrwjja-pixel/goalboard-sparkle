@@ -94,25 +94,45 @@ echo ""
 echo "✅ 파일 전송 완료"
 echo ""
 
-# 4. 원격 서버에서 서비스 재시작만 수행
+# 4. 원격 서버에서 서비스 재시작
 echo "🔄 운영 서버 재시작 중..."
 echo ""
 
 ssh ${SSH_OPTS} ${SERVER_USER}@${SERVER_HOST} << ENDSSH
 cd ${SERVER_PATH}
 
-echo "🔄 PM2 서버 재시작 중..."
-if pm2 list | grep -q goalboard; then
-    pm2 restart goalboard
-    echo "✅ goalboard 재시작 완료"
+# 로그 디렉토리 생성
+mkdir -p logs
+
+# 기존 프로세스 종료
+echo "🛑 기존 서버 프로세스 종료 중..."
+OLD_PID=\$(pgrep -f "node.*production.cjs" || true)
+if [ -n "\$OLD_PID" ]; then
+    kill \$OLD_PID 2>/dev/null || true
+    sleep 2
+    echo "   기존 프로세스(PID: \$OLD_PID) 종료됨"
 else
-    echo "⚠️  PM2 프로세스가 없습니다. 수동으로 시작하세요:"
-    echo "   pm2 start ecosystem.config.js"
+    echo "   실행 중인 프로세스 없음"
+fi
+
+# 새 서버 실행
+echo "🚀 새 서버 시작 중..."
+nohup node server/production.cjs > logs/server.log 2>&1 &
+sleep 2
+
+# 실행 확인
+NEW_PID=\$(pgrep -f "node.*production.cjs" || true)
+if [ -n "\$NEW_PID" ]; then
+    echo "✅ 서버 시작 완료 (PID: \$NEW_PID)"
+else
+    echo "❌ 서버 시작 실패! 로그를 확인하세요:"
+    echo "   tail -f ${SERVER_PATH}/logs/server.log"
+    exit 1
 fi
 
 echo ""
 echo "서버 상태:"
-pm2 status
+ps aux | grep "production.cjs" | grep -v grep || echo "프로세스 없음"
 ENDSSH
 
 echo ""
@@ -127,12 +147,12 @@ echo "  ✓ 모든 npm 패키지 (오프라인)"
 echo "  ✓ Prisma 엔진 바이너리"
 echo ""
 echo "서버 확인:"
-echo "  ssh ${SSH_OPTS} ${SERVER_USER}@${SERVER_HOST}"
+echo "  ssh -p ${SERVER_PORT} ${SERVER_USER}@${SERVER_HOST}"
 echo "  cd ${SERVER_PATH}"
-echo "  pm2 logs goalboard"
+echo "  tail -f logs/server.log"
 echo ""
 echo "⚠️  주의사항:"
 echo "  - uploads/ 폴더는 보존됩니다 (사용자 업로드 파일)"
-echo "  - logs/ 폴더는 보존됩니다 (PM2 로그)"
+echo "  - logs/ 폴더는 보존됩니다 (서버 로그)"
 echo "  - .env 파일은 덮어쓰지 않습니다 (수동 관리)"
 echo ""
