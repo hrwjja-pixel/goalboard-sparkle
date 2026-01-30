@@ -382,7 +382,7 @@ app.get('/api/goals', async (req: Request, res: Response) => {
       include: {
         categories: true,
         subGoals: {
-          orderBy: { createdAt: 'asc' },
+          orderBy: { order: 'asc' },
         },
         notes: {
           orderBy: { createdAt: 'desc' },
@@ -436,7 +436,7 @@ app.get('/api/goals/:id', async (req: Request, res: Response) => {
       include: {
         categories: true,
         subGoals: {
-          orderBy: { createdAt: 'asc' },
+          orderBy: { order: 'asc' },
         },
         notes: {
           orderBy: { createdAt: 'desc' },
@@ -525,7 +525,7 @@ app.post('/api/goals', async (req: AuthRequest, res: Response) => {
         },
         subGoals: subGoals
           ? {
-              create: subGoals.map((sg: any) => ({
+              create: subGoals.map((sg: any, index: number) => ({
                 id: sg.id,
                 title: sg.title,
                 description: sg.description,
@@ -534,6 +534,7 @@ app.post('/api/goals', async (req: AuthRequest, res: Response) => {
                 startDate: sg.startDate,
                 dueDate: sg.dueDate,
                 statusNote: sg.statusNote,
+                order: index,
               })),
             }
           : undefined,
@@ -551,7 +552,7 @@ app.post('/api/goals', async (req: AuthRequest, res: Response) => {
       },
       include: {
         categories: true,
-        subGoals: true,
+        subGoals: { orderBy: { order: 'asc' } },
         notes: true,
       },
     });
@@ -622,7 +623,7 @@ app.put('/api/goals/:id/complete', async (req: AuthRequest, res: Response) => {
       },
       include: {
         categories: true,
-        subGoals: { orderBy: { createdAt: 'asc' } },
+        subGoals: { orderBy: { order: 'asc' } },
         notes: { orderBy: { createdAt: 'desc' } },
         attachments: { orderBy: { createdAt: 'desc' } },
       },
@@ -661,7 +662,7 @@ app.put('/api/goals/:id', async (req: AuthRequest, res: Response) => {
     const currentGoal = await prisma.goal.findUnique({
       where: { id },
       include: {
-        subGoals: true,
+        subGoals: { orderBy: { order: 'asc' } },
         notes: true,
       },
     });
@@ -726,7 +727,8 @@ app.put('/api/goals/:id', async (req: AuthRequest, res: Response) => {
         }
 
         // Update existing or create new subgoals
-        for (const sg of subGoals) {
+        for (let i = 0; i < subGoals.length; i++) {
+          const sg = subGoals[i];
           if (sg.id && existingSubGoalIds.has(sg.id)) {
             // Update existing subgoal
             await tx.subGoal.update({
@@ -739,6 +741,7 @@ app.put('/api/goals/:id', async (req: AuthRequest, res: Response) => {
                 startDate: sg.startDate,
                 dueDate: sg.dueDate,
                 statusNote: sg.statusNote,
+                order: i,
                 version: { increment: 1 },
               },
             });
@@ -754,6 +757,7 @@ app.put('/api/goals/:id', async (req: AuthRequest, res: Response) => {
                 startDate: sg.startDate,
                 dueDate: sg.dueDate,
                 statusNote: sg.statusNote,
+                order: i,
                 goalId: id,
               },
             });
@@ -820,7 +824,7 @@ app.put('/api/goals/:id', async (req: AuthRequest, res: Response) => {
         include: {
           categories: true,
           subGoals: {
-            orderBy: { createdAt: 'asc' },
+            orderBy: { order: 'asc' },
           },
           notes: {
             orderBy: { createdAt: 'desc' },
