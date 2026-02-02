@@ -48610,6 +48610,17 @@ app.use(import_passport3.default.initialize());
 app.use(import_passport3.default.session());
 app.use("/api/auth", auth_default);
 app.use("/api", optionalAuth, attachAuditLog);
+async function getDescendantIds(projectId) {
+  const children = await prisma3.project.findMany({
+    where: { parentId: projectId },
+    select: { id: true }
+  });
+  const childIds = children.map((c) => c.id);
+  const descendantIds = await Promise.all(
+    childIds.map((id) => getDescendantIds(id))
+  );
+  return [...childIds, ...descendantIds.flat()];
+}
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });
@@ -48702,8 +48713,14 @@ app.get("/api/categories", async (req, res) => {
     if (!projectId) {
       return res.status(400).json({ error: "projectId is required" });
     }
+    const includeDescendants = req.query.includeDescendants === "true";
+    let projectIds = [projectId];
+    if (includeDescendants) {
+      const descendants = await getDescendantIds(projectId);
+      projectIds = [projectId, ...descendants];
+    }
     const categories = await prisma3.category.findMany({
-      where: { projectId },
+      where: { projectId: { in: projectIds } },
       orderBy: { name: "asc" }
     });
     res.json(categories);

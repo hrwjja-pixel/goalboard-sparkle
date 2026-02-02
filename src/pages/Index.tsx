@@ -84,7 +84,7 @@ const Index = () => {
 
         // Load categories and goals
         const [categoriesData, allGoalsData] = await Promise.all([
-          api.getCategories(currentProject.id),
+          api.getCategories(currentProject.id, includeDescendants),
           api.getGoals(currentProject.id, true, includeDescendants),
         ]);
 

@@ -82,8 +82,8 @@ export const api = {
   },
 
   // Categories
-  async getCategories(projectId: string): Promise<CategoryWithId[]> {
-    const response = await fetch(`${API_BASE_URL}/api/categories?projectId=${projectId}`);
+  async getCategories(projectId: string, includeDescendants: boolean = false): Promise<CategoryWithId[]> {
+    const response = await fetch(`${API_BASE_URL}/api/categories?projectId=${projectId}&includeDescendants=${includeDescendants}`);
     if (!response.ok) throw new Error('Failed to fetch categories');
     return response.json();
   },

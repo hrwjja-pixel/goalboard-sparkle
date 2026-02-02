@@ -69,6 +69,21 @@ app.use('/api/auth', authRoutes);
 // Apply optional auth and audit middleware to all API routes
 app.use('/api', optionalAuth, attachAuditLog);
 
+// Helper function for project hierarchy
+async function getDescendantIds(projectId: string): Promise<string[]> {
+  const children = await prisma.project.findMany({
+    where: { parentId: projectId },
+    select: { id: true }
+  });
+
+  const childIds = children.map(c => c.id);
+  const descendantIds = await Promise.all(
+    childIds.map(id => getDescendantIds(id))
+  );
+
+  return [...childIds, ...descendantIds.flat()];
+}
+
 // Health check
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'ok' });
@@ -186,8 +201,16 @@ app.get('/api/categories', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'projectId is required' });
     }
 
+    const includeDescendants = req.query.includeDescendants === 'true';
+
+    let projectIds = [projectId];
+    if (includeDescendants) {
+      const descendants = await getDescendantIds(projectId);
+      projectIds = [projectId, ...descendants];
+    }
+
     const categories = await prisma.category.findMany({
-      where: { projectId },
+      where: { projectId: { in: projectIds } },
       orderBy: { name: 'asc' },
     });
     res.json(categories);

@@ -262,8 +262,16 @@ app.get('/api/categories', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'projectId is required' });
     }
 
+    const includeDescendants = req.query.includeDescendants === 'true';
+
+    let projectIds = [projectId];
+    if (includeDescendants) {
+      const descendants = await getDescendantIds(projectId);
+      projectIds = [projectId, ...descendants];
+    }
+
     const categories = await prisma.category.findMany({
-      where: { projectId },
+      where: { projectId: { in: projectIds } },
       orderBy: { name: 'asc' },
     });
     res.json(categories);
