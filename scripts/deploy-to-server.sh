@@ -27,6 +27,7 @@ SERVER_USER="${DEPLOY_SERVER_USER}"
 SERVER_HOST="${DEPLOY_SERVER_HOST}"
 SERVER_PORT="${DEPLOY_SERVER_PORT}"
 SERVER_PATH="${DEPLOY_SERVER_PATH}"
+NGINX_DIST_PATH="${NGINX_DIST_PATH}"
 
 echo "========================================="
 echo "  목표 대시보드 오프라인 서버 배포"
@@ -34,6 +35,9 @@ echo "========================================="
 echo ""
 echo "배포 대상: ${SERVER_USER}@${SERVER_HOST}:${SERVER_PORT}"
 echo "배포 경로: ${SERVER_PATH}"
+if [ -n "${NGINX_DIST_PATH}" ]; then
+    echo "nginx 경로: ${NGINX_DIST_PATH}"
+fi
 echo ""
 
 # 1. 배포 전 자동 백업
@@ -134,6 +138,26 @@ echo ""
 echo "서버 상태:"
 ps aux | grep "production.cjs" | grep -v grep || echo "프로세스 없음"
 ENDSSH
+
+# 5. nginx 정적 파일 경로에 dist 복사 및 nginx 재시작
+if [ -n "${NGINX_DIST_PATH}" ]; then
+    echo ""
+    echo "🔄 nginx 정적 파일 업데이트 중..."
+
+    ssh ${SSH_OPTS} ${SERVER_USER}@${SERVER_HOST} << NGINX_EOF
+# dist 파일을 nginx 경로로 복사
+echo "📋 dist 파일 복사: ${SERVER_PATH}/dist/ -> ${NGINX_DIST_PATH}/"
+sudo cp -r ${SERVER_PATH}/dist/* ${NGINX_DIST_PATH}/
+
+# nginx 설정 테스트 및 재시작
+echo "🔄 nginx 재시작..."
+sudo nginx -t && sudo nginx -s reload
+echo "✅ nginx 재시작 완료"
+NGINX_EOF
+
+    echo ""
+    echo "✅ nginx 정적 파일 업데이트 완료"
+fi
 
 echo ""
 echo "========================================="

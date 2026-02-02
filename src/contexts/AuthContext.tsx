@@ -1,5 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
+// API 기본 URL 설정 (api.ts와 동일한 로직)
+const getApiBaseUrl = () => {
+  const baseUrl = import.meta.env.BASE_URL || '/';
+  return baseUrl === '/' ? '' : baseUrl.replace(/\/$/, '');
+};
+
+const API_BASE_URL = getApiBaseUrl();
+
 interface User {
   userId: string;
   email: string;
@@ -28,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const checkAuthConfig = async () => {
       try {
         // Check if OAuth is configured on the server
-        const response = await fetch('/api/auth/config');
+        const response = await fetch(`${API_BASE_URL}/api/auth/config`);
         const config = await response.json();
 
         if (!config.oauthEnabled) {
@@ -80,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserInfo = async (authToken: string) => {
     try {
-      const response = await fetch('/api/auth/me', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
         headers: {
           Authorization: `Bearer ${authToken}`,
         },

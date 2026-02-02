@@ -38,11 +38,18 @@ npm run prod
 cd scripts && ./deploy-to-server.sh
 ```
 - 자동으로 DB 백업, 프론트엔드/서버 빌드, rsync 전송, 서버 재시작 수행
-- PM2 대신 nohup 방식으로 서버 실행
+- PM2 대신 nohup 방식으로 서버 실행 (node 경로: `/opt/nodejs/bin/node`)
+- nginx 정적 파일 경로로 dist 복사 및 nginx reload 자동 수행
 
 ### 배포 설정
 - `scripts/.env.deploy` - 배포 서버 정보 (gitignore)
 - `scripts/.env.backup` - DB 백업 정보 (gitignore)
+
+### 서버 경로 구조 (중요!)
+- **Node.js 서버 경로**: `/home/ktg2926/dashboard/` - 백엔드 실행 위치
+- **nginx 정적 파일 경로**: `/home/apps/dashboard/dist/` - 프론트엔드 서빙 위치
+- 배포 스크립트가 자동으로 dist 파일을 nginx 경로로 복사함
+- `NGINX_DIST_PATH` 환경변수로 설정 가능
 
 ## 데이터베이스
 
