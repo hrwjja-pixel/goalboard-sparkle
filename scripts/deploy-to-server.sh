@@ -117,7 +117,7 @@ fi
 
 # 새 서버 실행
 echo "🚀 새 서버 시작 중..."
-nohup node server/production.cjs > logs/server.log 2>&1 &
+nohup /opt/nodejs/bin/node server/production.cjs > logs/server.log 2>&1 &
 sleep 2
 
 # 실행 확인
