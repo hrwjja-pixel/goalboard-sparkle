@@ -41,6 +41,12 @@ echo "📋 Copying Prisma files..."
 mkdir -p "$PROD_DIR/prisma"
 cp -r prisma/* "$PROD_DIR/prisma/"
 
+# Copy scripts (backup, etc.)
+echo "📋 Copying scripts..."
+mkdir -p "$PROD_DIR/scripts"
+cp scripts/backup-db-server.sh "$PROD_DIR/scripts/" 2>/dev/null || true
+cp scripts/.env.backup.example "$PROD_DIR/scripts/" 2>/dev/null || true
+
 # Copy package.json for server
 echo "📋 Copying server package.json..."
 cp server/package.json "$PROD_DIR/"

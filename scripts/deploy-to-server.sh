@@ -40,9 +40,9 @@ echo ""
 echo "💾 배포 전 데이터베이스 백업 중..."
 SSH_OPTS="-p ${SERVER_PORT}"
 
-ssh ${SSH_OPTS} ${SERVER_USER}@${SERVER_HOST} << 'BACKUP_EOF'
-if [ -f /home/ktg2926/dashboard/scripts/backup-db-server.sh ]; then
-    cd /home/ktg2926/dashboard/scripts
+ssh ${SSH_OPTS} ${SERVER_USER}@${SERVER_HOST} << BACKUP_EOF
+if [ -f ${SERVER_PATH}/scripts/backup-db-server.sh ]; then
+    cd ${SERVER_PATH}/scripts
     ./backup-db-server.sh
     echo "✅ 백업 완료"
 else
