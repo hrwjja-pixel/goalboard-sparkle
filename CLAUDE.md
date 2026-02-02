@@ -1,11 +1,23 @@
 # 프로젝트 개발 지침
 
-## 서버 코드 수정 시 주의사항
+## 서버 코드 수정 시 주의사항 (중요!)
 
-### 개발/운영 서버 파일 동기화
-- `server/index.ts` (개발용) 수정 시 반드시 `server/production.ts` (운영용)도 동일하게 수정
+### 개발/운영 서버 파일 동기화 - 필수 체크리스트
+- `server/index.ts` (개발용) 수정 시 **반드시** `server/production.ts` (운영용)도 **동일하게** 수정
 - 수정 후 반드시 서버 빌드 실행: `npm run build:server`
 - production.cjs는 production.ts를 esbuild로 번들링한 파일임
+
+### API 엔드포인트 수정 시 특히 주의
+두 파일의 다음 API들이 **완전히 동일**해야 함:
+- `/api/goals` - GET (includeDescendants 파라미터 포함)
+- `/api/categories` - GET (includeDescendants 파라미터 포함)
+- 기타 모든 API 엔드포인트
+
+### 수정 완료 전 확인사항
+1. index.ts 수정 완료
+2. production.ts에 동일한 수정 적용 확인
+3. `npm run build:server` 실행
+4. 로컬 테스트 후 배포
 
 ### 빌드 명령어
 ```bash
