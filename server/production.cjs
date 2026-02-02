@@ -48798,7 +48798,15 @@ app.get("/api/goals", async (req, res) => {
       return res.status(400).json({ error: "projectId is required" });
     }
     const showCompleted = req.query.showCompleted === "true";
-    const whereClause = { projectId };
+    const includeDescendants = req.query.includeDescendants === "true";
+    let projectIds = [projectId];
+    if (includeDescendants) {
+      const descendants = await getDescendantIds(projectId);
+      projectIds = [projectId, ...descendants];
+    }
+    const whereClause = {
+      projectId: { in: projectIds }
+    };
     if (!showCompleted) {
       whereClause.completed = false;
     }

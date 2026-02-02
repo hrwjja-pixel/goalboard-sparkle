@@ -308,8 +308,18 @@ app.get('/api/goals', async (req: Request, res: Response) => {
     }
 
     const showCompleted = req.query.showCompleted === 'true';
+    const includeDescendants = req.query.includeDescendants === 'true';
 
-    const whereClause: any = { projectId };
+    let projectIds = [projectId];
+
+    if (includeDescendants) {
+      const descendants = await getDescendantIds(projectId);
+      projectIds = [projectId, ...descendants];
+    }
+
+    const whereClause: any = {
+      projectId: { in: projectIds }
+    };
     if (!showCompleted) {
       whereClause.completed = false;
     }
