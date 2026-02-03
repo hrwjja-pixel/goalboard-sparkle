@@ -8,6 +8,11 @@ import {
   SheetTitle,
   SheetFooter,
 } from '@/components/ui/sheet';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +23,7 @@ import {
   User,
   Calendar,
   ChevronRight,
+  ChevronDown,
   Pin,
   FileText,
   Download,
@@ -29,6 +35,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LinkifiedText } from '@/components/LinkifiedText';
+import { ChangeDetails } from '@/components/ChangeDetails';
 import { api } from '@/lib/api';
 
 interface GoalViewDialogProps {
@@ -296,14 +303,19 @@ export const GoalViewDialog = ({
             </div>
           )}
 
-          {/* Activity History Section */}
+          {/* Activity History Section - Collapsible */}
           {activities.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                <History className="h-4 w-4" />
-                변경 이력 ({activities.length})
-              </h3>
-              <div className="space-y-2">
+            <Collapsible defaultOpen={false}>
+              <CollapsibleTrigger asChild>
+                <button className="w-full flex items-center justify-between p-3 bg-muted/30 rounded-lg border hover:bg-muted/50 transition-colors group">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                    <History className="h-4 w-4" />
+                    변경 이력 ({activities.length}건)
+                  </h3>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2 space-y-2">
                 {activities.map((activity) => (
                   <div
                     key={activity.id}
@@ -327,11 +339,13 @@ export const GoalViewDialog = ({
                       <p className="text-xs text-muted-foreground mt-1">
                         {activity.displayName} · {formatRelativeTime(activity.createdAt)}
                       </p>
+                      {/* 변경 상세 내용 표시 */}
+                      <ChangeDetails changes={activity.changes} />
                     </div>
                   </div>
                 ))}
-              </div>
-            </div>
+              </CollapsibleContent>
+            </Collapsible>
           )}
         </div>
 
@@ -420,3 +434,4 @@ const NoteCard = ({
     </div>
   );
 };
+

@@ -48566,6 +48566,212 @@ function attachAuditLog(req, res, next) {
   next();
 }
 
+// server/utils/changeTracker.ts
+var GOAL_FIELDS = [
+  { field: "title", label: "\uC81C\uBAA9", type: "primitive" },
+  { field: "progress", label: "\uC9C4\uD589\uB960", type: "primitive" },
+  { field: "description", label: "\uC124\uBA85", type: "text", maxLength: 100 },
+  { field: "owner", label: "\uB2F4\uB2F9\uC790", type: "primitive" },
+  { field: "size", label: "\uC911\uC694\uB3C4", type: "primitive" },
+  { field: "startDate", label: "\uC2DC\uC791\uC77C", type: "date" },
+  { field: "dueDate", label: "\uC885\uB8CC\uC77C", type: "date" },
+  { field: "statusNote", label: "\uC0C1\uD0DC \uBA54\uBAA8", type: "text", maxLength: 50 }
+];
+var SIZE_LABELS = {
+  xs: "\uCD5C\uC800",
+  small: "\uB0AE\uC74C",
+  medium: "\uC911\uAC04",
+  large: "\uB192\uC74C",
+  xl: "\uCD5C\uACE0"
+};
+function truncateText(text, maxLength) {
+  if (!text) return "";
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength) + "...";
+}
+function normalizeDate(date) {
+  if (!date) return null;
+  if (typeof date === "string") {
+    return date.split("T")[0];
+  }
+  if (date instanceof Date) {
+    return date.toISOString().split("T")[0];
+  }
+  return String(date);
+}
+function formatDateForDisplay(date) {
+  if (!date) return null;
+  const normalized = normalizeDate(date);
+  if (!normalized) return null;
+  const [year, month, day] = normalized.split("-");
+  if (!year || !month) return normalized;
+  return day ? `${year}\uB144 ${parseInt(month)}\uC6D4 ${parseInt(day)}\uC77C` : `${year}\uB144 ${parseInt(month)}\uC6D4`;
+}
+function isEqual(oldVal, newVal, type) {
+  if (type === "date") {
+    return normalizeDate(oldVal) === normalizeDate(newVal);
+  }
+  if (oldVal === null || oldVal === void 0) oldVal = "";
+  if (newVal === null || newVal === void 0) newVal = "";
+  return String(oldVal).trim() === String(newVal).trim();
+}
+function detectGoalChanges(currentGoal, newData) {
+  const changes = [];
+  for (const fieldDef of GOAL_FIELDS) {
+    const { field, label, type, maxLength } = fieldDef;
+    if (!(field in newData)) continue;
+    const oldValue = currentGoal[field];
+    const newValue = newData[field];
+    if (!isEqual(oldValue, newValue, type)) {
+      let displayOldValue = oldValue;
+      let displayNewValue = newValue;
+      if (field === "size") {
+        displayOldValue = SIZE_LABELS[oldValue] || oldValue || "\uC5C6\uC74C";
+        displayNewValue = SIZE_LABELS[newValue] || newValue || "\uC5C6\uC74C";
+      } else if (type === "date") {
+        displayOldValue = formatDateForDisplay(oldValue) || "\uC5C6\uC74C";
+        displayNewValue = formatDateForDisplay(newValue) || "\uC5C6\uC74C";
+      } else if (type === "text" && maxLength) {
+        displayOldValue = truncateText(oldValue, maxLength) || "\uC5C6\uC74C";
+        displayNewValue = truncateText(newValue, maxLength) || "\uC5C6\uC74C";
+      } else {
+        displayOldValue = oldValue ?? "\uC5C6\uC74C";
+        displayNewValue = newValue ?? "\uC5C6\uC74C";
+      }
+      if (field === "progress") {
+        displayOldValue = `${oldValue ?? 0}%`;
+        displayNewValue = `${newValue ?? 0}%`;
+      }
+      changes.push({
+        field,
+        fieldLabel: label,
+        oldValue: displayOldValue,
+        newValue: displayNewValue,
+        type
+      });
+    }
+  }
+  return changes;
+}
+function detectCategoryChanges(oldCategories, newCategories) {
+  const oldSet = new Set(oldCategories);
+  const newSet = new Set(newCategories);
+  const added = newCategories.filter((c) => !oldSet.has(c));
+  const removed = oldCategories.filter((c) => !newSet.has(c));
+  if (added.length === 0 && removed.length === 0) {
+    return null;
+  }
+  return {
+    added: added.length > 0 ? added : void 0,
+    removed: removed.length > 0 ? removed : void 0
+  };
+}
+function detectSubGoalChanges(currentSubGoals, newSubGoals) {
+  if (!newSubGoals) return null;
+  const currentMap = new Map(currentSubGoals.map((sg) => [sg.id, sg]));
+  const newIds = new Set(newSubGoals.filter((sg) => sg.id).map((sg) => sg.id));
+  const result = {};
+  const deleted = currentSubGoals.filter((sg) => !newIds.has(sg.id)).map((sg) => ({ id: sg.id, title: sg.title }));
+  if (deleted.length > 0) {
+    result.deleted = deleted;
+  }
+  const added = newSubGoals.filter((sg) => !sg.id || !currentMap.has(sg.id)).map((sg) => ({ id: sg.id || "new", title: sg.title }));
+  if (added.length > 0) {
+    result.added = added;
+  }
+  const updated = [];
+  for (const newSg of newSubGoals) {
+    if (!newSg.id) continue;
+    const currentSg = currentMap.get(newSg.id);
+    if (!currentSg) continue;
+    const changes = [];
+    if (newSg.title !== currentSg.title) {
+      changes.push({
+        field: "title",
+        fieldLabel: "\uC81C\uBAA9",
+        oldValue: currentSg.title,
+        newValue: newSg.title,
+        type: "primitive"
+      });
+    }
+    if (newSg.progress !== void 0 && newSg.progress !== currentSg.progress) {
+      changes.push({
+        field: "progress",
+        fieldLabel: "\uC9C4\uD589\uB960",
+        oldValue: `${currentSg.progress}%`,
+        newValue: `${newSg.progress}%`,
+        type: "primitive"
+      });
+    }
+    if (changes.length > 0) {
+      updated.push({ id: newSg.id, title: newSg.title, changes });
+    }
+  }
+  if (updated.length > 0) {
+    result.updated = updated;
+  }
+  if (!result.added && !result.deleted && !result.updated) {
+    return null;
+  }
+  return result;
+}
+function detectNoteChanges(currentNotes, newNotes) {
+  if (!newNotes) return null;
+  const currentMap = new Map(currentNotes.map((n) => [n.id, n]));
+  const newIds = new Set(newNotes.filter((n) => n.id).map((n) => n.id));
+  const result = {};
+  const deleted = currentNotes.filter((n) => !newIds.has(n.id)).map((n) => ({ id: n.id, contentPreview: truncateText(n.content, 30) }));
+  if (deleted.length > 0) {
+    result.deleted = deleted;
+  }
+  const added = newNotes.filter((n) => !n.id || !currentMap.has(n.id)).map((n) => ({ id: n.id || "new", content: truncateText(n.content, 50) }));
+  if (added.length > 0) {
+    result.added = added;
+  }
+  const updated = [];
+  for (const newNote of newNotes) {
+    if (!newNote.id) continue;
+    const currentNote = currentMap.get(newNote.id);
+    if (!currentNote) continue;
+    if (newNote.content !== currentNote.content) {
+      updated.push({
+        id: newNote.id,
+        contentPreview: truncateText(newNote.content, 30)
+      });
+    }
+  }
+  if (updated.length > 0) {
+    result.updated = updated;
+  }
+  if (!result.added && !result.deleted && !result.updated) {
+    return null;
+  }
+  return result;
+}
+function buildChangesData(currentGoal, newGoalData, oldCategories, newCategories, currentSubGoals, newSubGoals, currentNotes, newNotes) {
+  const result = {};
+  const fieldChanges = detectGoalChanges(currentGoal, newGoalData);
+  if (fieldChanges.length > 0) {
+    result.fields = fieldChanges;
+  }
+  const categoryChanges = detectCategoryChanges(oldCategories, newCategories);
+  if (categoryChanges) {
+    result.categories = categoryChanges;
+  }
+  const subGoalChanges = detectSubGoalChanges(currentSubGoals, newSubGoals);
+  if (subGoalChanges) {
+    result.subGoals = subGoalChanges;
+  }
+  const noteChanges = detectNoteChanges(currentNotes, newNotes);
+  if (noteChanges) {
+    result.notes = noteChanges;
+  }
+  if (!result.fields && !result.categories && !result.subGoals && !result.notes) {
+    return null;
+  }
+  return result;
+}
+
 // server/production.ts
 var import_path = __toESM(require("path"));
 var import_multer = __toESM(require_multer());
@@ -49063,6 +49269,7 @@ app.put("/api/goals/:id", async (req, res) => {
     const currentGoal = await prisma3.goal.findUnique({
       where: { id },
       include: {
+        categories: true,
         subGoals: { orderBy: { order: "asc" } },
         notes: true
       }
@@ -49201,6 +49408,22 @@ app.put("/api/goals/:id", async (req, res) => {
         }
       });
     });
+    const oldCategoryNames = currentGoal.categories.map((c) => c.name);
+    const changesData = buildChangesData(
+      currentGoal,
+      goalData,
+      oldCategoryNames,
+      categories,
+      currentGoal.subGoals.map((sg) => ({
+        id: sg.id,
+        title: sg.title,
+        progress: sg.progress,
+        owner: sg.owner
+      })),
+      subGoals,
+      currentGoal.notes.map((n) => ({ id: n.id, content: n.content })),
+      notes
+    );
     await req.audit?.({
       action: "UPDATE",
       entityType: "Goal",
@@ -49208,7 +49431,8 @@ app.put("/api/goals/:id", async (req, res) => {
       entityTitle: goal.title,
       goalId: goal.id,
       projectId: currentGoal.projectId,
-      summary: `\uBAA9\uD45C '${goal.title}' \uC218\uC815`
+      summary: `\uBAA9\uD45C '${goal.title}' \uC218\uC815`,
+      changes: changesData
     });
     res.json({
       ...goal,

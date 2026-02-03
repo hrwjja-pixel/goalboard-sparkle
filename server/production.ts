@@ -8,6 +8,7 @@ import { setupPassport } from './auth/passport';
 import authRoutes from './routes/auth';
 import { optionalAuth, AuthRequest } from './middleware/auth';
 import { attachAuditLog } from './middleware/audit';
+import { buildChangesData } from './utils/changeTracker';
 import path from 'path';
 import multer from 'multer';
 import fs from 'fs';
@@ -619,10 +620,11 @@ app.put('/api/goals/:id', async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Must provide 1-5 categories' });
     }
 
-    // Pre-fetch current goal for version check and projectId
+    // Pre-fetch current goal for version check, projectId and change tracking
     const currentGoal = await prisma.goal.findUnique({
       where: { id },
       include: {
+        categories: true,
         subGoals: { orderBy: { order: 'asc' } },
         notes: true,
       },
@@ -794,6 +796,24 @@ app.put('/api/goals/:id', async (req: AuthRequest, res: Response) => {
       });
     });
 
+    // Build changes data for audit log
+    const oldCategoryNames = currentGoal.categories.map(c => c.name);
+    const changesData = buildChangesData(
+      currentGoal,
+      goalData,
+      oldCategoryNames,
+      categories,
+      currentGoal.subGoals.map(sg => ({
+        id: sg.id,
+        title: sg.title,
+        progress: sg.progress,
+        owner: sg.owner,
+      })),
+      subGoals,
+      currentGoal.notes.map(n => ({ id: n.id, content: n.content })),
+      notes
+    );
+
     // Audit log (outside transaction)
     await (req as any).audit?.({
       action: 'UPDATE',
@@ -803,6 +823,7 @@ app.put('/api/goals/:id', async (req: AuthRequest, res: Response) => {
       goalId: goal.id,
       projectId: currentGoal.projectId,
       summary: `목표 '${goal.title}' 수정`,
+      changes: changesData,
     });
 
     res.json({

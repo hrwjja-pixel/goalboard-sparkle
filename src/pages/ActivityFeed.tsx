@@ -11,6 +11,7 @@ import {
 import { useProject } from '@/contexts/ProjectContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ChangeDetails } from '@/components/ChangeDetails';
 import {
   ArrowLeft,
   Globe,
@@ -206,6 +207,9 @@ function ActivityCard({ activity, onGoalClick }: ActivityCardProps) {
             <p className="text-sm mt-1">
               {formatActivitySummary(activity)}
             </p>
+
+            {/* Change details */}
+            <ChangeDetails changes={activity.changes} />
 
             {/* Action badge */}
             <div className="flex items-center gap-2 mt-2">

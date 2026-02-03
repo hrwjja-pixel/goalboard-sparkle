@@ -1,3 +1,34 @@
+// Field change tracking types
+export interface FieldChange {
+  field: string;
+  fieldLabel: string;
+  oldValue: any;
+  newValue: any;
+  type: 'primitive' | 'text' | 'date';
+}
+
+export interface SubGoalChange {
+  added?: Array<{ id: string; title: string }>;
+  updated?: Array<{ id: string; title: string; changes: FieldChange[] }>;
+  deleted?: Array<{ id: string; title: string }>;
+}
+
+export interface NoteChange {
+  added?: Array<{ id: string; content: string }>;
+  updated?: Array<{ id: string; contentPreview: string }>;
+  deleted?: Array<{ id: string; contentPreview: string }>;
+}
+
+export interface ChangesData {
+  fields?: FieldChange[];
+  categories?: {
+    added?: string[];
+    removed?: string[];
+  };
+  subGoals?: SubGoalChange;
+  notes?: NoteChange;
+}
+
 // Activity Log Types
 export interface ActivityLog {
   id: string;
@@ -9,7 +40,7 @@ export interface ActivityLog {
   projectId?: string;
   summary?: string;
   ipAddress?: string;
-  changes?: string;
+  changes?: ChangesData | string;
   createdAt: string;
   displayName: string;
   user?: {
