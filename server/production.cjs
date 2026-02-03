@@ -48542,11 +48542,8 @@ var auth_default = router;
 var import_client2 = require("@prisma/client");
 var prisma2 = new import_client2.PrismaClient();
 function attachAuditLog(req, res, next) {
+  const ipAddress = req.headers["x-forwarded-for"]?.toString().split(",")[0].trim() || req.socket.remoteAddress || "unknown";
   req.audit = async (info) => {
-    if (!req.user) {
-      console.warn("Audit log attempted without authenticated user");
-      return;
-    }
     try {
       await prisma2.auditLog.create({
         data: {
@@ -48554,7 +48551,11 @@ function attachAuditLog(req, res, next) {
           entityType: info.entityType,
           entityId: info.entityId,
           entityTitle: info.entityTitle,
-          userId: req.user.userId,
+          goalId: info.goalId,
+          projectId: info.projectId,
+          summary: info.summary,
+          ipAddress,
+          userId: req.user?.userId || null,
           changes: info.changes ? JSON.stringify(info.changes) : null
         }
       });
@@ -48650,7 +48651,9 @@ app.post("/api/projects", async (req, res) => {
       action: "CREATE",
       entityType: "Project",
       entityId: project.id,
-      entityTitle: project.name
+      entityTitle: project.name,
+      projectId: project.id,
+      summary: `\uD504\uB85C\uC81D\uD2B8 '${project.name}' \uC0DD\uC131`
     });
     res.json(project);
   } catch (error) {
@@ -48675,7 +48678,9 @@ app.put("/api/projects/:id", async (req, res) => {
       action: "UPDATE",
       entityType: "Project",
       entityId: project.id,
-      entityTitle: project.name
+      entityTitle: project.name,
+      projectId: project.id,
+      summary: `\uD504\uB85C\uC81D\uD2B8 '${project.name}' \uC218\uC815`
     });
     res.json(project);
   } catch (error) {
@@ -48699,7 +48704,9 @@ app.delete("/api/projects/:id", async (req, res) => {
       action: "DELETE",
       entityType: "Project",
       entityId: id,
-      entityTitle: project?.name || "Unknown"
+      entityTitle: project?.name || "Unknown",
+      projectId: id,
+      summary: `\uD504\uB85C\uC81D\uD2B8 '${project?.name || "Unknown"}' \uC0AD\uC81C`
     });
     res.json({ success: true });
   } catch (error) {
@@ -48742,7 +48749,9 @@ app.post("/api/categories", async (req, res) => {
       action: "CREATE",
       entityType: "Category",
       entityId: category.id,
-      entityTitle: category.name
+      entityTitle: category.name,
+      projectId: category.projectId,
+      summary: `\uCE74\uD14C\uACE0\uB9AC '${category.name}' \uC0DD\uC131`
     });
     res.json(category);
   } catch (error) {
@@ -48761,7 +48770,9 @@ app.delete("/api/categories/:id", async (req, res) => {
       action: "DELETE",
       entityType: "Category",
       entityId: id,
-      entityTitle: category?.name || "Unknown"
+      entityTitle: category?.name || "Unknown",
+      projectId: category?.projectId,
+      summary: `\uCE74\uD14C\uACE0\uB9AC '${category?.name || "Unknown"}' \uC0AD\uC81C`
     });
     res.json({ success: true });
   } catch (error) {
@@ -48783,7 +48794,9 @@ app.put("/api/categories/:id", async (req, res) => {
       action: "UPDATE",
       entityType: "Category",
       entityId: category.id,
-      entityTitle: category.name
+      entityTitle: category.name,
+      projectId: category.projectId,
+      summary: `\uCE74\uD14C\uACE0\uB9AC '${category.name}' \uC218\uC815`
     });
     res.json(category);
   } catch (error) {
@@ -48963,7 +48976,10 @@ app.post("/api/goals", async (req, res) => {
       action: "CREATE",
       entityType: "Goal",
       entityId: goal.id,
-      entityTitle: goal.title
+      entityTitle: goal.title,
+      goalId: goal.id,
+      projectId,
+      summary: `\uBAA9\uD45C '${goal.title}' \uC0DD\uC131`
     });
     res.json({
       ...goal,
@@ -48992,7 +49008,8 @@ app.put("/api/goals/reorder", async (req, res) => {
       action: "REORDER",
       entityType: "Goal",
       entityId: "bulk",
-      entityTitle: `${goals.length} goals reordered`
+      entityTitle: `${goals.length} goals reordered`,
+      summary: `${goals.length}\uAC1C \uBAA9\uD45C \uC21C\uC11C \uBCC0\uACBD`
     });
     res.json({ success: true });
   } catch (error) {
@@ -49022,7 +49039,10 @@ app.put("/api/goals/:id/complete", async (req, res) => {
       entityType: "Goal",
       entityId: goal.id,
       entityTitle: goal.title,
-      changes: JSON.stringify({ completed })
+      goalId: goal.id,
+      projectId: goal.projectId,
+      summary: completed ? `\uBAA9\uD45C '${goal.title}' \uC644\uB8CC \uCC98\uB9AC` : `\uBAA9\uD45C '${goal.title}' \uC644\uB8CC \uD574\uC81C`,
+      changes: { completed }
     });
     res.json({
       ...goal,
@@ -49185,7 +49205,10 @@ app.put("/api/goals/:id", async (req, res) => {
       action: "UPDATE",
       entityType: "Goal",
       entityId: goal.id,
-      entityTitle: goal.title
+      entityTitle: goal.title,
+      goalId: goal.id,
+      projectId: currentGoal.projectId,
+      summary: `\uBAA9\uD45C '${goal.title}' \uC218\uC815`
     });
     res.json({
       ...goal,
@@ -49213,11 +49236,54 @@ app.delete("/api/goals/:id", async (req, res) => {
       action: "DELETE",
       entityType: "Goal",
       entityId: id,
-      entityTitle: goal?.title || "Unknown"
+      entityTitle: goal?.title || "Unknown",
+      goalId: id,
+      projectId: goal?.projectId,
+      summary: `\uBAA9\uD45C '${goal?.title || "Unknown"}' \uC0AD\uC81C`
     });
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: "Failed to delete goal" });
+  }
+});
+app.get("/api/activity", async (req, res) => {
+  try {
+    const { projectId, limit = "50", offset = "0" } = req.query;
+    const activities = await prisma3.auditLog.findMany({
+      where: projectId ? { projectId } : void 0,
+      include: { user: { select: { name: true, picture: true } } },
+      orderBy: { createdAt: "desc" },
+      take: Number(limit),
+      skip: Number(offset)
+    });
+    const result = activities.map((a) => ({
+      ...a,
+      displayName: a.user?.name || a.ipAddress || "\uC54C \uC218 \uC5C6\uC74C"
+    }));
+    res.json(result);
+  } catch (error) {
+    console.error("Error fetching activity feed:", error);
+    res.status(500).json({ error: "Failed to fetch activity feed" });
+  }
+});
+app.get("/api/goals/:id/activity", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { limit = "50" } = req.query;
+    const activities = await prisma3.auditLog.findMany({
+      where: { goalId: id },
+      include: { user: { select: { name: true, picture: true } } },
+      orderBy: { createdAt: "desc" },
+      take: Number(limit)
+    });
+    const result = activities.map((a) => ({
+      ...a,
+      displayName: a.user?.name || a.ipAddress || "\uC54C \uC218 \uC5C6\uC74C"
+    }));
+    res.json(result);
+  } catch (error) {
+    console.error("Error fetching goal activity:", error);
+    res.status(500).json({ error: "Failed to fetch goal activity" });
   }
 });
 if (process.env.NODE_ENV === "production" || Number(PORT) === 80) {
@@ -49257,7 +49323,10 @@ app.post("/api/goals/:id/attachments", upload.single("file"), async (req, res) =
       action: "CREATE",
       entityType: "Attachment",
       entityId: attachment.id,
-      entityTitle: decodedOriginalName
+      entityTitle: decodedOriginalName,
+      goalId: id,
+      projectId: goal.projectId,
+      summary: `'${goal.title}'\uC5D0 \uCCA8\uBD80\uD30C\uC77C '${decodedOriginalName}' \uCD94\uAC00`
     });
     res.json(attachment);
   } catch (error) {
@@ -49308,7 +49377,10 @@ app.get("/api/attachments/:id/download", async (req, res) => {
 app.delete("/api/attachments/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const attachment = await prisma3.attachment.findUnique({ where: { id } });
+    const attachment = await prisma3.attachment.findUnique({
+      where: { id },
+      include: { goal: { select: { id: true, title: true, projectId: true } } }
+    });
     if (!attachment) {
       return res.status(404).json({ error: "Attachment not found" });
     }
@@ -49321,7 +49393,10 @@ app.delete("/api/attachments/:id", async (req, res) => {
       action: "DELETE",
       entityType: "Attachment",
       entityId: id,
-      entityTitle: attachment.originalName
+      entityTitle: attachment.originalName,
+      goalId: attachment.goalId,
+      projectId: attachment.goal?.projectId,
+      summary: `'${attachment.goal?.title}'\uC5D0\uC11C \uCCA8\uBD80\uD30C\uC77C '${attachment.originalName}' \uC0AD\uC81C`
     });
     res.json({ message: "Attachment deleted successfully" });
   } catch (error) {

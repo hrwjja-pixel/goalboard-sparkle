@@ -1,10 +1,11 @@
 import { Goal, GoalCategory } from '@/types/goal';
 import { Progress } from '@/components/ui/progress';
-import { TrendingUp, Plus, Maximize2, List, Minimize2, ChevronDown, Settings } from 'lucide-react';
+import { TrendingUp, Plus, Maximize2, List, Minimize2, ChevronDown, Settings, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { ProjectSelector } from '@/components/ProjectSelector';
+import { Link } from 'react-router-dom';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -158,6 +159,11 @@ export const CompactOverallSummary = ({
             <Plus className="w-4 h-4 mr-2" />
             새 목표
           </Button>
+          <Link to="/activity">
+            <Button size="sm" variant="outline" className="shadow-md" title="활동 내역">
+              <History className="w-4 h-4" />
+            </Button>
+          </Link>
           {onSettingsClick && (
             <Button onClick={onSettingsClick} size="sm" variant="outline" className="shadow-md">
               <Settings className="w-4 h-4" />

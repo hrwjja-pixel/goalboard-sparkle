@@ -153,6 +153,8 @@ app.post('/api/projects', async (req: AuthRequest, res: Response) => {
       entityType: 'Project',
       entityId: project.id,
       entityTitle: project.name,
+      projectId: project.id,
+      summary: `프로젝트 '${project.name}' 생성`,
     });
 
     res.json(project);
@@ -199,6 +201,8 @@ app.put('/api/projects/:id', async (req: AuthRequest, res: Response) => {
       entityType: 'Project',
       entityId: project.id,
       entityTitle: project.name,
+      projectId: project.id,
+      summary: `프로젝트 '${project.name}' 수정`,
     });
 
     res.json(project);
@@ -245,6 +249,8 @@ app.delete('/api/projects/:id', async (req: AuthRequest, res: Response) => {
       entityType: 'Project',
       entityId: id,
       entityTitle: project?.name || 'Unknown',
+      projectId: id,
+      summary: `프로젝트 '${project?.name || 'Unknown'}' 삭제`,
     });
 
     res.json({ success: true });
@@ -298,6 +304,8 @@ app.post('/api/categories', async (req: AuthRequest, res: Response) => {
       entityType: 'Category',
       entityId: category.id,
       entityTitle: category.name,
+      projectId: category.projectId,
+      summary: `카테고리 '${category.name}' 생성`,
     });
 
     res.json(category);
@@ -324,6 +332,8 @@ app.delete('/api/categories/:id', async (req: AuthRequest, res: Response) => {
       entityType: 'Category',
       entityId: id,
       entityTitle: category?.name || 'Unknown',
+      projectId: category?.projectId,
+      summary: `카테고리 '${category?.name || 'Unknown'}' 삭제`,
     });
 
     res.json({ success: true });
@@ -351,6 +361,8 @@ app.put('/api/categories/:id', async (req: AuthRequest, res: Response) => {
       entityType: 'Category',
       entityId: category.id,
       entityTitle: category.name,
+      projectId: category.projectId,
+      summary: `카테고리 '${category.name}' 수정`,
     });
 
     res.json(category);
@@ -571,6 +583,9 @@ app.post('/api/goals', async (req: AuthRequest, res: Response) => {
       entityType: 'Goal',
       entityId: goal.id,
       entityTitle: goal.title,
+      goalId: goal.id,
+      projectId: projectId,
+      summary: `목표 '${goal.title}' 생성`,
     });
 
     res.json({
@@ -608,6 +623,7 @@ app.put('/api/goals/reorder', async (req: AuthRequest, res: Response) => {
       entityType: 'Goal',
       entityId: 'bulk',
       entityTitle: `${goals.length} goals reordered`,
+      summary: `${goals.length}개 목표 순서 변경`,
     });
 
     res.json({ success: true });
@@ -643,7 +659,10 @@ app.put('/api/goals/:id/complete', async (req: AuthRequest, res: Response) => {
       entityType: 'Goal',
       entityId: goal.id,
       entityTitle: goal.title,
-      changes: JSON.stringify({ completed }),
+      goalId: goal.id,
+      projectId: goal.projectId,
+      summary: completed ? `목표 '${goal.title}' 완료 처리` : `목표 '${goal.title}' 완료 해제`,
+      changes: { completed },
     });
 
     res.json({
@@ -847,6 +866,9 @@ app.put('/api/goals/:id', async (req: AuthRequest, res: Response) => {
       entityType: 'Goal',
       entityId: goal.id,
       entityTitle: goal.title,
+      goalId: goal.id,
+      projectId: currentGoal.projectId,
+      summary: `목표 '${goal.title}' 수정`,
     });
 
     res.json({
@@ -872,7 +894,7 @@ app.delete('/api/goals/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    // Get goal title before deletion for audit log
+    // Get goal title and projectId before deletion for audit log
     const goal = await prisma.goal.findUnique({ where: { id } });
 
     await prisma.goal.delete({
@@ -885,11 +907,68 @@ app.delete('/api/goals/:id', async (req: AuthRequest, res: Response) => {
       entityType: 'Goal',
       entityId: id,
       entityTitle: goal?.title || 'Unknown',
+      goalId: id,
+      projectId: goal?.projectId,
+      summary: `목표 '${goal?.title || 'Unknown'}' 삭제`,
     });
 
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete goal' });
+  }
+});
+
+// Activity Log endpoints
+
+// Get activity feed (all activities)
+app.get('/api/activity', async (req: Request, res: Response) => {
+  try {
+    const { projectId, limit = '50', offset = '0' } = req.query;
+
+    const activities = await prisma.auditLog.findMany({
+      where: projectId ? { projectId: projectId as string } : undefined,
+      include: { user: { select: { name: true, picture: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: Number(limit),
+      skip: Number(offset),
+    });
+
+    // IP 주소 또는 사용자 이름 표시
+    const result = activities.map(a => ({
+      ...a,
+      displayName: a.user?.name || a.ipAddress || '알 수 없음',
+    }));
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching activity feed:', error);
+    res.status(500).json({ error: 'Failed to fetch activity feed' });
+  }
+});
+
+// Get activity for a specific goal
+app.get('/api/goals/:id/activity', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { limit = '50' } = req.query;
+
+    const activities = await prisma.auditLog.findMany({
+      where: { goalId: id },
+      include: { user: { select: { name: true, picture: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: Number(limit),
+    });
+
+    // IP 주소 또는 사용자 이름 표시
+    const result = activities.map(a => ({
+      ...a,
+      displayName: a.user?.name || a.ipAddress || '알 수 없음',
+    }));
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching goal activity:', error);
+    res.status(500).json({ error: 'Failed to fetch goal activity' });
   }
 });
 
@@ -950,6 +1029,9 @@ app.post('/api/goals/:id/attachments', upload.single('file'), async (req: AuthRe
       entityType: 'Attachment',
       entityId: attachment.id,
       entityTitle: decodedOriginalName,
+      goalId: id,
+      projectId: goal.projectId,
+      summary: `'${goal.title}'에 첨부파일 '${decodedOriginalName}' 추가`,
     });
 
     res.json(attachment);
@@ -1015,7 +1097,10 @@ app.delete('/api/attachments/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    const attachment = await prisma.attachment.findUnique({ where: { id } });
+    const attachment = await prisma.attachment.findUnique({
+      where: { id },
+      include: { goal: { select: { id: true, title: true, projectId: true } } },
+    });
     if (!attachment) {
       return res.status(404).json({ error: 'Attachment not found' });
     }
@@ -1035,6 +1120,9 @@ app.delete('/api/attachments/:id', async (req: AuthRequest, res: Response) => {
       entityType: 'Attachment',
       entityId: id,
       entityTitle: attachment.originalName,
+      goalId: attachment.goalId,
+      projectId: attachment.goal?.projectId,
+      summary: `'${attachment.goal?.title}'에서 첨부파일 '${attachment.originalName}' 삭제`,
     });
 
     res.json({ message: 'Attachment deleted successfully' });

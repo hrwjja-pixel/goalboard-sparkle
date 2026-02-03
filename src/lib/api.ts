@@ -1,4 +1,5 @@
 import { Goal, GoalCategory, Attachment, Project } from '@/types/goal';
+import { ActivityLog } from '@/types/activity';
 
 // API 기본 URL 설정
 const getApiBaseUrl = () => {
@@ -242,5 +243,23 @@ export const api = {
       headers: getAuthHeaders(),
     });
     if (!response.ok) throw new Error('Failed to delete attachment');
+  },
+
+  // Activity Log
+  async getActivityFeed(projectId?: string, limit = 50, offset = 0): Promise<ActivityLog[]> {
+    const params = new URLSearchParams();
+    if (projectId) params.append('projectId', projectId);
+    params.append('limit', String(limit));
+    params.append('offset', String(offset));
+
+    const response = await fetch(`${API_BASE_URL}/api/activity?${params.toString()}`);
+    if (!response.ok) throw new Error('Failed to fetch activity feed');
+    return response.json();
+  },
+
+  async getGoalActivity(goalId: string, limit = 50): Promise<ActivityLog[]> {
+    const response = await fetch(`${API_BASE_URL}/api/goals/${goalId}/activity?limit=${limit}`);
+    if (!response.ok) throw new Error('Failed to fetch goal activity');
+    return response.json();
   },
 };

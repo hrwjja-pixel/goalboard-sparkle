@@ -7,6 +7,7 @@ import { GoalCard } from '@/components/GoalCard';
 import { CompactGoalCard } from '@/components/CompactGoalCard';
 import { ListView } from '@/components/ListView';
 import { GoalDetailModal } from '@/components/GoalDetailModal';
+import { GoalViewDialog } from '@/components/GoalViewDialog';
 import { AddGoalModal } from '@/components/AddGoalModal';
 import { SettingsDialog } from '@/components/SettingsDialog';
 import { Button } from '@/components/ui/button';
@@ -54,6 +55,7 @@ const Index = () => {
   const [selectedOwners, setSelectedOwners] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<GoalCategory[]>([]);
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -140,8 +142,8 @@ const Index = () => {
     const refreshIntervalMs = userSettings.autoRefreshInterval * 1000;
 
     const refreshData = async () => {
-      // Skip refresh if user is actively editing
-      if (isDetailModalOpen || isAddModalOpen || isSettingsOpen || isDragging) {
+      // Skip refresh if user is actively editing or viewing
+      if (isViewDialogOpen || isDetailModalOpen || isAddModalOpen || isSettingsOpen || isDragging) {
         return;
       }
 
@@ -173,7 +175,7 @@ const Index = () => {
       clearTimeout(initialTimeout);
       clearInterval(refreshInterval);
     };
-  }, [currentProject, includeDescendants, isDetailModalOpen, isAddModalOpen, isSettingsOpen, isDragging, userSettings.enableAutoRefresh, userSettings.autoRefreshInterval]);
+  }, [currentProject, includeDescendants, isViewDialogOpen, isDetailModalOpen, isAddModalOpen, isSettingsOpen, isDragging, userSettings.enableAutoRefresh, userSettings.autoRefreshInterval]);
 
   // Filter and sort goals (for card views - excludes completed if showCompleted is false)
   const filteredGoals = useMemo(() => {
@@ -254,15 +256,18 @@ const Index = () => {
       console.log('Saving goal with version:', updatedGoal.version);
       await api.updateGoal(updatedGoal.id, updatedGoal);
 
-      // Close the modal
-      setSelectedGoal(null);
-
       // Always refresh all goals after save to ensure all users see latest data
       // IMPORTANT: Always fetch ALL goals (true), filtering is done client-side
       if (!currentProject) return;
       const allGoalsData = await api.getGoals(currentProject.id, true, includeDescendants);
       setCompletedCount(allGoalsData.filter(g => g.completed).length);
       setGoals(allGoalsData);
+
+      // Update selectedGoal with latest data for ViewDialog
+      const savedGoal = allGoalsData.find(g => g.id === updatedGoal.id);
+      if (savedGoal) {
+        setSelectedGoal(savedGoal);
+      }
     } catch (error: any) {
       console.error('Failed to save goal:', error);
       console.error('Error response:', error.response);
@@ -300,6 +305,9 @@ const Index = () => {
     try {
       await api.deleteGoal(goalId);
       setGoals((prev) => prev.filter((g) => g.id !== goalId));
+      // Close dialogs after delete
+      setIsViewDialogOpen(false);
+      setSelectedGoal(null);
     } catch (error) {
       console.error('Failed to delete goal:', error);
       alert('목표 삭제에 실패했습니다.');
@@ -317,6 +325,14 @@ const Index = () => {
       const completedTotal = allGoalsData.filter(g => g.completed).length;
       setCompletedCount(completedTotal);
       setGoals(allGoalsData);
+
+      // Update selectedGoal if viewing this goal
+      if (selectedGoal && selectedGoal.id === goalId) {
+        const updatedGoal = allGoalsData.find(g => g.id === goalId);
+        if (updatedGoal) {
+          setSelectedGoal(updatedGoal);
+        }
+      }
     } catch (error) {
       console.error('Failed to toggle goal completion:', error);
       alert('목표 완료 상태 변경에 실패했습니다.');
@@ -435,7 +451,7 @@ const Index = () => {
   const handleCardClick = async (goal: Goal) => {
     // Clear previous selection first
     setSelectedGoal(null);
-    setIsDetailModalOpen(true);
+    setIsViewDialogOpen(true);
 
     try {
       // Fetch latest data from server
@@ -454,6 +470,17 @@ const Index = () => {
       // Fallback to cached data
       setSelectedGoal(goal);
     }
+  };
+
+  const handleEditFromView = () => {
+    // Close view dialog and open edit modal
+    setIsViewDialogOpen(false);
+    setIsDetailModalOpen(true);
+  };
+
+  const handleCloseView = () => {
+    setIsViewDialogOpen(false);
+    setSelectedGoal(null);
   };
 
   const handleDragStart = () => {
@@ -641,12 +668,36 @@ const Index = () => {
         )}
       </div>
 
+      <GoalViewDialog
+        goal={selectedGoal}
+        open={isViewDialogOpen}
+        onClose={handleCloseView}
+        onEdit={handleEditFromView}
+        onToggleComplete={handleToggleComplete}
+        categories={categories}
+        categoryColors={categoryColors}
+      />
+
       <GoalDetailModal
         goal={selectedGoal}
         open={isDetailModalOpen}
-        onClose={() => {
+        onClose={async () => {
           setIsDetailModalOpen(false);
-          setSelectedGoal(null);
+          // Re-open view dialog with updated data after edit
+          if (selectedGoal) {
+            try {
+              // Fetch latest data from server
+              const latestGoal = await api.getGoal(selectedGoal.id);
+              setSelectedGoal(latestGoal);
+              // Update in goals list as well
+              setGoals((prev) =>
+                prev.map((g) => (g.id === latestGoal.id ? latestGoal : g))
+              );
+            } catch (error) {
+              console.error('Failed to refresh goal:', error);
+            }
+            setIsViewDialogOpen(true);
+          }
         }}
         onSave={handleSaveGoal}
         onDelete={handleDeleteGoal}

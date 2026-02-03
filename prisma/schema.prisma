@@ -114,16 +114,23 @@ model User {
 
 model AuditLog {
   id          String   @id @default(uuid())
-  action      String
-  entityType  String
+  action      String   // CREATE, UPDATE, DELETE, REORDER
+  entityType  String   // Goal, SubGoal, Note, Attachment, Category, Project
   entityId    String
   entityTitle String?
-  userId      String
-  changes     String?
+  goalId      String?  // 연관 목표 ID (목표별 이력 조회용)
+  projectId   String?  // 프로젝트 ID (프로젝트별 조회용)
+  summary     String?  // 사람이 읽기 쉬운 요약
+  ipAddress   String?  // 사용자 IP 주소 (계정관리 없으므로 IP로 식별)
+  userId      String?  // nullable (현재 계정관리 없음)
+  changes     String?  // JSON 형태의 변경 내용
   createdAt   DateTime @default(now())
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([entityId])
+  @@index([goalId])
+  @@index([projectId])
+  @@index([ipAddress])
   @@index([userId])
   @@index([createdAt])
 }

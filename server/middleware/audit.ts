@@ -6,9 +6,12 @@ const prisma = new PrismaClient();
 
 export interface AuditInfo {
   action: 'CREATE' | 'UPDATE' | 'DELETE' | 'REORDER';
-  entityType: 'Goal' | 'SubGoal' | 'Note' | 'Category';
+  entityType: 'Goal' | 'SubGoal' | 'Note' | 'Category' | 'Attachment' | 'Project' | 'Setting';
   entityId: string;
   entityTitle?: string;
+  goalId?: string;      // 연관 목표 ID (목표별 이력 조회용)
+  projectId?: string;   // 프로젝트 ID (프로젝트별 조회용)
+  summary?: string;     // 사람이 읽기 쉬운 요약
   changes?: any;
 }
 
@@ -18,13 +21,13 @@ export function attachAuditLog(
   res: Response,
   next: NextFunction
 ) {
+  // IP 주소 추출 (프록시 환경 고려)
+  const ipAddress = req.headers['x-forwarded-for']?.toString().split(',')[0].trim()
+    || req.socket.remoteAddress
+    || 'unknown';
+
   // Add audit function to request
   (req as any).audit = async (info: AuditInfo) => {
-    if (!req.user) {
-      console.warn('Audit log attempted without authenticated user');
-      return;
-    }
-
     try {
       await prisma.auditLog.create({
         data: {
@@ -32,7 +35,11 @@ export function attachAuditLog(
           entityType: info.entityType,
           entityId: info.entityId,
           entityTitle: info.entityTitle,
-          userId: req.user.userId,
+          goalId: info.goalId,
+          projectId: info.projectId,
+          summary: info.summary,
+          ipAddress,
+          userId: req.user?.userId || null,
           changes: info.changes ? JSON.stringify(info.changes) : null,
         },
       });
