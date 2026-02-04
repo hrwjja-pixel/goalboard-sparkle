@@ -7,12 +7,20 @@ import { LinkifiedText } from '@/components/LinkifiedText';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { PriorityIcon } from '@/components/PriorityIcon';
+import { CategoryQuickEditor } from '@/components/CategoryQuickEditor';
 
 interface GoalCardProps {
   goal: Goal;
   onClick: () => void;
+  categories?: GoalCategory[];
   categoryColors?: Record<string, string>;
   onToggleComplete?: (goalId: string, completed: boolean) => void;
+  onUpdateCategories?: (goalId: string, categories: GoalCategory[]) => Promise<void>;
+  onAddCategory?: (name: string) => Promise<void>;
+  onUpdateCategoryColor?: (category: string, color: string) => Promise<void>;
+  onUpdateCategoryName?: (oldName: string, newName: string) => Promise<void>;
+  onDeleteCategory?: (category: string) => Promise<void>;
+  categoryUsageCount?: Record<string, number>;
 }
 
 const getCategoryStyle = (category: GoalCategory, categoryColors?: Record<string, string>) => {
@@ -61,7 +69,7 @@ const getSizeClass = (size: GoalSize) => {
 };
 
 
-export const GoalCard = ({ goal, onClick, categoryColors, onToggleComplete }: GoalCardProps) => {
+export const GoalCard = ({ goal, onClick, categories = [], categoryColors, onToggleComplete, onUpdateCategories, onAddCategory, onUpdateCategoryColor, onUpdateCategoryName, onDeleteCategory, categoryUsageCount }: GoalCardProps) => {
   const {
     attributes,
     listeners,
@@ -93,6 +101,7 @@ export const GoalCard = ({ goal, onClick, categoryColors, onToggleComplete }: Go
     <div
       ref={setNodeRef}
       style={{ ...style, ...categoryStyle.style }}
+      onClick={onClick}
       className={cn(
         'rounded-xl border-2 p-6 cursor-pointer transition-all duration-300',
         'hover:shadow-xl hover:-translate-y-1 animate-fade-in relative',
@@ -156,9 +165,8 @@ export const GoalCard = ({ goal, onClick, categoryColors, onToggleComplete }: Go
           </div>
         </div>
       </div>
-      <div onClick={onClick}>
       <div className="mb-3">
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
           {goal.categories && goal.categories.map((category, index) => {
             const catStyle = getCategoryStyle(category as GoalCategory, categoryColors);
             return (
@@ -171,6 +179,20 @@ export const GoalCard = ({ goal, onClick, categoryColors, onToggleComplete }: Go
               </Badge>
             );
           })}
+          {onUpdateCategories && (
+            <CategoryQuickEditor
+              goal={goal}
+              categories={categories}
+              categoryColors={categoryColors || {}}
+              onUpdateCategories={onUpdateCategories}
+              onAddCategory={onAddCategory}
+              onUpdateCategoryColor={onUpdateCategoryColor}
+              onUpdateCategoryName={onUpdateCategoryName}
+              onDeleteCategory={onDeleteCategory}
+              categoryUsageCount={categoryUsageCount}
+              size="md"
+            />
+          )}
           <PriorityIcon size={goal.size} showLabel />
         </div>
       </div>
@@ -274,7 +296,6 @@ export const GoalCard = ({ goal, onClick, categoryColors, onToggleComplete }: Go
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 };

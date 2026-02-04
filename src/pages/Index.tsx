@@ -209,6 +209,19 @@ const Index = () => {
     }).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }, [goals, selectedCategories, selectedOwners, searchText, showCompleted]);
 
+  // Calculate category usage count (how many goals use each category)
+  const categoryUsageCount = useMemo(() => {
+    const counts: Record<string, number> = {};
+    goals.forEach((goal) => {
+      if (goal.categories) {
+        goal.categories.forEach((cat) => {
+          counts[cat] = (counts[cat] || 0) + 1;
+        });
+      }
+    });
+    return counts;
+  }, [goals]);
+
   // Get unique owners from main goals only (filtered by category and search, excluding owner filter)
   const owners = useMemo(() => {
     const ownerSet = new Set<string>();
@@ -336,6 +349,35 @@ const Index = () => {
     } catch (error) {
       console.error('Failed to toggle goal completion:', error);
       alert('목표 완료 상태 변경에 실패했습니다.');
+    }
+  };
+
+  const handleQuickCategoryUpdate = async (goalId: string, newCategories: GoalCategory[]) => {
+    if (!currentProject) return;
+
+    try {
+      const goal = goals.find(g => g.id === goalId);
+      if (!goal) return;
+
+      // 카테고리만 업데이트
+      await api.updateGoal(goalId, { ...goal, categories: newCategories });
+
+      // 목표 목록 새로고침
+      const allGoalsData = await api.getGoals(currentProject.id, true, includeDescendants);
+      setCompletedCount(allGoalsData.filter(g => g.completed).length);
+      setGoals(allGoalsData);
+
+      // selectedGoal 업데이트
+      if (selectedGoal && selectedGoal.id === goalId) {
+        const updatedGoal = allGoalsData.find(g => g.id === goalId);
+        if (updatedGoal) {
+          setSelectedGoal(updatedGoal);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to update goal categories:', error);
+      alert('카테고리 변경에 실패했습니다.');
+      throw error;
     }
   };
 
@@ -585,10 +627,6 @@ const Index = () => {
             onCategoryToggle={handleCategoryToggle}
             owners={owners}
             categories={categories}
-            onAddCategory={handleAddCategory}
-            onDeleteCategory={handleDeleteCategory}
-            onCategoryColorChange={handleCategoryColorChange}
-            onCategoryNameChange={handleCategoryNameChange}
             showCompleted={showCompleted}
             onShowCompletedToggle={() => setShowCompleted(!showCompleted)}
             completedCount={completedCount}
@@ -613,9 +651,16 @@ const Index = () => {
         {viewMode === 'list' ? (
           <ListView
             goals={filteredGoals}
+            categories={categories}
             categoryColors={categoryColors}
             onGoalClick={handleCardClick}
             onToggleComplete={handleToggleComplete}
+            onUpdateCategories={handleQuickCategoryUpdate}
+            onAddCategory={handleAddCategory}
+            onUpdateCategoryColor={handleCategoryColorChange}
+            onUpdateCategoryName={handleCategoryNameChange}
+            onDeleteCategory={handleDeleteCategory}
+            categoryUsageCount={categoryUsageCount}
             showCompleted={showCompleted}
           />
         ) : (
@@ -640,16 +685,30 @@ const Index = () => {
                         key={goal.id}
                         goal={goal}
                         onClick={() => handleCardClick(goal)}
+                        categories={categories}
                         categoryColors={categoryColors}
                         onToggleComplete={handleToggleComplete}
+                        onUpdateCategories={handleQuickCategoryUpdate}
+                        onAddCategory={handleAddCategory}
+                        onUpdateCategoryColor={handleCategoryColorChange}
+                        onUpdateCategoryName={handleCategoryNameChange}
+                        onDeleteCategory={handleDeleteCategory}
+                        categoryUsageCount={categoryUsageCount}
                       />
                     ) : (
                       <GoalCard
                         key={goal.id}
                         goal={goal}
                         onClick={() => handleCardClick(goal)}
+                        categories={categories}
                         categoryColors={categoryColors}
                         onToggleComplete={handleToggleComplete}
+                        onUpdateCategories={handleQuickCategoryUpdate}
+                        onAddCategory={handleAddCategory}
+                        onUpdateCategoryColor={handleCategoryColorChange}
+                        onUpdateCategoryName={handleCategoryNameChange}
+                        onDeleteCategory={handleDeleteCategory}
+                        categoryUsageCount={categoryUsageCount}
                       />
                     )
                   ))}

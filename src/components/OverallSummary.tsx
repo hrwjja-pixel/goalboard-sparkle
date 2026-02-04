@@ -29,10 +29,6 @@ interface OverallSummaryProps {
   onCategoryToggle: (category: GoalCategory) => void;
   owners: string[];
   categories: GoalCategory[];
-  onAddCategory: (category: string) => void;
-  onDeleteCategory: (category: string) => void;
-  onCategoryColorChange: (category: string, color: string) => void;
-  onCategoryNameChange?: (oldName: string, newName: string) => void;
   showCompleted: boolean;
   onShowCompletedToggle: () => void;
   completedCount: number;
@@ -54,10 +50,6 @@ export const OverallSummary = ({
   onCategoryToggle,
   owners,
   categories,
-  onAddCategory,
-  onDeleteCategory,
-  onCategoryColorChange,
-  onCategoryNameChange,
   showCompleted,
   onShowCompletedToggle,
   completedCount,
@@ -231,15 +223,7 @@ export const OverallSummary = ({
             onSearchChange={onSearchChange}
             selectedOwners={selectedOwners}
             onOwnerToggle={onOwnerToggle}
-            selectedCategories={selectedCategories}
-            onCategoryToggle={onCategoryToggle}
             owners={owners}
-            categories={categories}
-            categoryColors={categoryColors || {}}
-            onAddCategory={onAddCategory}
-            onDeleteCategory={onDeleteCategory}
-            onCategoryColorChange={onCategoryColorChange}
-            onCategoryNameChange={onCategoryNameChange}
             showCompleted={showCompleted}
             onShowCompletedToggle={onShowCompletedToggle}
             completedCount={completedCount}

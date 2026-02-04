@@ -14,12 +14,20 @@ import {
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import { PriorityIcon } from '@/components/PriorityIcon';
+import { CategoryQuickEditor } from '@/components/CategoryQuickEditor';
 
 interface CompactGoalCardProps {
   goal: Goal;
   onClick: () => void;
+  categories?: GoalCategory[];
   categoryColors?: Record<string, string>;
   onToggleComplete?: (goalId: string, completed: boolean) => void;
+  onUpdateCategories?: (goalId: string, categories: GoalCategory[]) => Promise<void>;
+  onAddCategory?: (name: string) => Promise<void>;
+  onUpdateCategoryColor?: (category: string, color: string) => Promise<void>;
+  onUpdateCategoryName?: (oldName: string, newName: string) => Promise<void>;
+  onDeleteCategory?: (category: string) => Promise<void>;
+  categoryUsageCount?: Record<string, number>;
 }
 
 const getCategoryStyle = (category: GoalCategory, categoryColors?: Record<string, string>) => {
@@ -50,7 +58,7 @@ const getCategoryStyle = (category: GoalCategory, categoryColors?: Record<string
   };
 };
 
-export const CompactGoalCard = ({ goal, onClick, categoryColors, onToggleComplete }: CompactGoalCardProps) => {
+export const CompactGoalCard = ({ goal, onClick, categories = [], categoryColors, onToggleComplete, onUpdateCategories, onAddCategory, onUpdateCategoryColor, onUpdateCategoryName, onDeleteCategory, categoryUsageCount }: CompactGoalCardProps) => {
   const {
     attributes,
     listeners,
@@ -218,6 +226,20 @@ export const CompactGoalCard = ({ goal, onClick, categoryColors, onToggleComplet
                 </Badge>
               );
             })}
+            {onUpdateCategories && (
+              <CategoryQuickEditor
+                goal={goal}
+                categories={categories}
+                categoryColors={categoryColors || {}}
+                onUpdateCategories={onUpdateCategories}
+                onAddCategory={onAddCategory}
+                onUpdateCategoryColor={onUpdateCategoryColor}
+                onUpdateCategoryName={onUpdateCategoryName}
+                onDeleteCategory={onDeleteCategory}
+                categoryUsageCount={categoryUsageCount}
+                size="sm"
+              />
+            )}
           </div>
         </div>
 

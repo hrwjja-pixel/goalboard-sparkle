@@ -21,12 +21,20 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { PriorityIcon } from '@/components/PriorityIcon';
+import { CategoryQuickEditor } from '@/components/CategoryQuickEditor';
 
 interface ListViewProps {
   goals: Goal[];
+  categories?: GoalCategory[];
   categoryColors?: Record<string, string>;
   onGoalClick: (goal: Goal) => void;
   onToggleComplete?: (goalId: string, completed: boolean) => void;
+  onUpdateCategories?: (goalId: string, categories: GoalCategory[]) => Promise<void>;
+  onAddCategory?: (name: string) => Promise<void>;
+  onUpdateCategoryColor?: (category: string, color: string) => Promise<void>;
+  onUpdateCategoryName?: (oldName: string, newName: string) => Promise<void>;
+  onDeleteCategory?: (category: string) => Promise<void>;
+  categoryUsageCount?: Record<string, number>;
   showCompleted: boolean;
 }
 
@@ -35,9 +43,16 @@ type SortDirection = 'asc' | 'desc';
 
 export const ListView = ({
   goals,
+  categories: allCategories = [],
   categoryColors,
   onGoalClick,
   onToggleComplete,
+  onUpdateCategories,
+  onAddCategory,
+  onUpdateCategoryColor,
+  onUpdateCategoryName,
+  onDeleteCategory,
+  categoryUsageCount,
   showCompleted,
 }: ListViewProps) => {
   // Filter states
@@ -459,7 +474,7 @@ export const ListView = ({
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap gap-1 items-center">
                       {goal.categories?.map((category, index) => (
                         <Badge
                           key={index}
@@ -469,6 +484,20 @@ export const ListView = ({
                           {category}
                         </Badge>
                       ))}
+                      {onUpdateCategories && (
+                        <CategoryQuickEditor
+                          goal={goal}
+                          categories={allCategories}
+                          categoryColors={categoryColors || {}}
+                          onUpdateCategories={onUpdateCategories}
+                          onAddCategory={onAddCategory}
+                          onUpdateCategoryColor={onUpdateCategoryColor}
+                          onUpdateCategoryName={onUpdateCategoryName}
+                          onDeleteCategory={onDeleteCategory}
+                          categoryUsageCount={categoryUsageCount}
+                          size="sm"
+                        />
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
