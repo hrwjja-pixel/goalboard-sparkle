@@ -48817,6 +48817,15 @@ app.use(import_passport3.default.initialize());
 app.use(import_passport3.default.session());
 app.use("/api/auth", auth_default);
 app.use("/api", optionalAuth, attachAuditLog);
+async function isDescendant(targetId, ancestorId) {
+  const project = await prisma3.project.findUnique({
+    where: { id: targetId },
+    select: { parentId: true }
+  });
+  if (!project || !project.parentId) return false;
+  if (project.parentId === ancestorId) return true;
+  return isDescendant(project.parentId, ancestorId);
+}
 async function getDescendantIds(projectId) {
   const children = await prisma3.project.findMany({
     where: { parentId: projectId },
@@ -48844,13 +48853,20 @@ app.get("/api/projects", async (req, res) => {
 });
 app.post("/api/projects", async (req, res) => {
   try {
-    const { name, description, dashboardTitle, dashboardSubtitle } = req.body;
+    const { name, description, dashboardTitle, dashboardSubtitle, parentId } = req.body;
+    if (parentId) {
+      const parent = await prisma3.project.findUnique({ where: { id: parentId } });
+      if (!parent) {
+        return res.status(400).json({ error: "Parent project not found" });
+      }
+    }
     const project = await prisma3.project.create({
       data: {
         name,
         description,
         dashboardTitle: dashboardTitle || "\uBAA9\uD45C \uB300\uC2DC\uBCF4\uB4DC",
-        dashboardSubtitle: dashboardSubtitle || ""
+        dashboardSubtitle: dashboardSubtitle || "",
+        parentId: parentId || null
       }
     });
     await req.audit?.({
@@ -48870,12 +48886,24 @@ app.post("/api/projects", async (req, res) => {
 app.put("/api/projects/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, dashboardTitle, dashboardSubtitle } = req.body;
+    const { name, description, dashboardTitle, dashboardSubtitle, parentId } = req.body;
+    if (parentId !== void 0 && parentId !== null) {
+      if (parentId === id) {
+        return res.status(400).json({ error: "Cannot set project as its own parent" });
+      }
+      const isCircular = await isDescendant(parentId, id);
+      if (isCircular) {
+        return res.status(400).json({
+          error: "Cannot set descendant as parent (circular reference)"
+        });
+      }
+    }
     const updateData = {};
     if (name !== void 0) updateData.name = name;
     if (description !== void 0) updateData.description = description;
     if (dashboardTitle !== void 0) updateData.dashboardTitle = dashboardTitle;
     if (dashboardSubtitle !== void 0) updateData.dashboardSubtitle = dashboardSubtitle;
+    if (parentId !== void 0) updateData.parentId = parentId;
     const project = await prisma3.project.update({
       where: { id },
       data: updateData

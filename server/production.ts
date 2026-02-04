@@ -70,7 +70,19 @@ app.use('/api/auth', authRoutes);
 // Apply optional auth and audit middleware to all API routes
 app.use('/api', optionalAuth, attachAuditLog);
 
-// Helper function for project hierarchy
+// Helper functions for project hierarchy
+async function isDescendant(targetId: string, ancestorId: string): Promise<boolean> {
+  const project = await prisma.project.findUnique({
+    where: { id: targetId },
+    select: { parentId: true }
+  });
+
+  if (!project || !project.parentId) return false;
+  if (project.parentId === ancestorId) return true;
+
+  return isDescendant(project.parentId, ancestorId);
+}
+
 async function getDescendantIds(projectId: string): Promise<string[]> {
   const children = await prisma.project.findMany({
     where: { parentId: projectId },
@@ -105,13 +117,23 @@ app.get('/api/projects', async (req: Request, res: Response) => {
 
 app.post('/api/projects', async (req: AuthRequest, res: Response) => {
   try {
-    const { name, description, dashboardTitle, dashboardSubtitle } = req.body;
+    const { name, description, dashboardTitle, dashboardSubtitle, parentId } = req.body;
+
+    // Validate parentId if provided
+    if (parentId) {
+      const parent = await prisma.project.findUnique({ where: { id: parentId } });
+      if (!parent) {
+        return res.status(400).json({ error: 'Parent project not found' });
+      }
+    }
+
     const project = await prisma.project.create({
       data: {
         name,
         description,
         dashboardTitle: dashboardTitle || '목표 대시보드',
         dashboardSubtitle: dashboardSubtitle || '',
+        parentId: parentId || null,
       },
     });
 
@@ -135,12 +157,28 @@ app.post('/api/projects', async (req: AuthRequest, res: Response) => {
 app.put('/api/projects/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, description, dashboardTitle, dashboardSubtitle } = req.body;
+    const { name, description, dashboardTitle, dashboardSubtitle, parentId } = req.body;
+
+    // Validate circular reference
+    if (parentId !== undefined && parentId !== null) {
+      if (parentId === id) {
+        return res.status(400).json({ error: 'Cannot set project as its own parent' });
+      }
+
+      const isCircular = await isDescendant(parentId, id);
+      if (isCircular) {
+        return res.status(400).json({
+          error: 'Cannot set descendant as parent (circular reference)'
+        });
+      }
+    }
+
     const updateData: any = {};
     if (name !== undefined) updateData.name = name;
     if (description !== undefined) updateData.description = description;
     if (dashboardTitle !== undefined) updateData.dashboardTitle = dashboardTitle;
     if (dashboardSubtitle !== undefined) updateData.dashboardSubtitle = dashboardSubtitle;
+    if (parentId !== undefined) updateData.parentId = parentId;
 
     const project = await prisma.project.update({
       where: { id },
