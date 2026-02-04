@@ -49384,21 +49384,26 @@ app.put("/api/goals/:id", async (req, res) => {
       }
       if (notes) {
         const incomingNoteIds = new Set(notes.map((note) => note.id).filter(Boolean));
-        const existingNoteIds = new Set(currentGoal.notes.map((note) => note.id));
+        const existingNotesMap = new Map(currentGoal.notes.map((note) => [note.id, note]));
         const notesToDelete = currentGoal.notes.filter((note) => !incomingNoteIds.has(note.id));
         for (const note of notesToDelete) {
           await tx.note.delete({ where: { id: note.id } });
         }
         for (const note of notes) {
-          if (note.id && existingNoteIds.has(note.id)) {
-            await tx.note.update({
-              where: { id: note.id },
-              data: {
-                content: note.content,
-                isPinned: note.isPinned,
-                version: { increment: 1 }
-              }
-            });
+          const existingNote = note.id ? existingNotesMap.get(note.id) : null;
+          if (existingNote) {
+            const contentChanged = existingNote.content !== note.content;
+            const isPinnedChanged = existingNote.isPinned !== note.isPinned;
+            if (contentChanged || isPinnedChanged) {
+              await tx.note.update({
+                where: { id: note.id },
+                data: {
+                  content: note.content,
+                  isPinned: note.isPinned,
+                  version: { increment: 1 }
+                }
+              });
+            }
           } else {
             await tx.note.create({
               data: {
@@ -49412,14 +49417,23 @@ app.put("/api/goals/:id", async (req, res) => {
           }
         }
       }
-      const updatedData = {
-        ...goalData,
-        completed: goalData.progress !== void 0 ? goalData.progress >= 100 : currentGoal.progress >= 100
+      const completed = goalData.progress !== void 0 ? goalData.progress >= 100 : currentGoal.progress >= 100;
+      const updateFields = {
+        completed
       };
+      if (goalData.title !== void 0) updateFields.title = goalData.title;
+      if (goalData.description !== void 0) updateFields.description = goalData.description;
+      if (goalData.owner !== void 0) updateFields.owner = goalData.owner;
+      if (goalData.progress !== void 0) updateFields.progress = goalData.progress;
+      if (goalData.size !== void 0) updateFields.size = goalData.size;
+      if (goalData.startDate !== void 0) updateFields.startDate = goalData.startDate;
+      if (goalData.dueDate !== void 0) updateFields.dueDate = goalData.dueDate;
+      if (goalData.statusNote !== void 0) updateFields.statusNote = goalData.statusNote;
+      if (goalData.order !== void 0) updateFields.order = goalData.order;
       return await tx.goal.update({
         where: { id },
         data: {
-          ...updatedData,
+          ...updateFields,
           categories: {
             set: categoryRecords.map((cat) => ({ id: cat.id }))
           },

@@ -797,7 +797,7 @@ app.put('/api/goals/:id', async (req: AuthRequest, res: Response) => {
       // Partial update for Notes
       if (notes) {
         const incomingNoteIds = new Set(notes.map((note: any) => note.id).filter(Boolean));
-        const existingNoteIds = new Set(currentGoal.notes.map((note) => note.id));
+        const existingNotesMap = new Map(currentGoal.notes.map((note) => [note.id, note]));
 
         // Delete notes that are not in the incoming data
         const notesToDelete = currentGoal.notes.filter((note) => !incomingNoteIds.has(note.id));
@@ -807,16 +807,23 @@ app.put('/api/goals/:id', async (req: AuthRequest, res: Response) => {
 
         // Update existing or create new notes
         for (const note of notes) {
-          if (note.id && existingNoteIds.has(note.id)) {
-            // Update existing note
-            await tx.note.update({
-              where: { id: note.id },
-              data: {
-                content: note.content,
-                isPinned: note.isPinned,
-                version: { increment: 1 },
-              },
-            });
+          const existingNote = note.id ? existingNotesMap.get(note.id) : null;
+
+          if (existingNote) {
+            // Only update if content or isPinned actually changed
+            const contentChanged = existingNote.content !== note.content;
+            const isPinnedChanged = existingNote.isPinned !== note.isPinned;
+
+            if (contentChanged || isPinnedChanged) {
+              await tx.note.update({
+                where: { id: note.id },
+                data: {
+                  content: note.content,
+                  isPinned: note.isPinned,
+                  version: { increment: 1 },
+                },
+              });
+            }
           } else {
             // Create new note
             await tx.note.create({
@@ -833,18 +840,29 @@ app.put('/api/goals/:id', async (req: AuthRequest, res: Response) => {
       }
 
       // Automatically set completed based on progress
-      const updatedData = {
-        ...goalData,
-        completed: goalData.progress !== undefined
-          ? goalData.progress >= 100
-          : currentGoal.progress >= 100,
+      const completed = goalData.progress !== undefined
+        ? goalData.progress >= 100
+        : currentGoal.progress >= 100;
+
+      // Only pick allowed fields for update (exclude projectId, project, id, etc.)
+      const updateFields: any = {
+        completed,
       };
+      if (goalData.title !== undefined) updateFields.title = goalData.title;
+      if (goalData.description !== undefined) updateFields.description = goalData.description;
+      if (goalData.owner !== undefined) updateFields.owner = goalData.owner;
+      if (goalData.progress !== undefined) updateFields.progress = goalData.progress;
+      if (goalData.size !== undefined) updateFields.size = goalData.size;
+      if (goalData.startDate !== undefined) updateFields.startDate = goalData.startDate;
+      if (goalData.dueDate !== undefined) updateFields.dueDate = goalData.dueDate;
+      if (goalData.statusNote !== undefined) updateFields.statusNote = goalData.statusNote;
+      if (goalData.order !== undefined) updateFields.order = goalData.order;
 
       // Update the goal with incremented version
       return await tx.goal.update({
         where: { id },
         data: {
-          ...updatedData,
+          ...updateFields,
           categories: {
             set: categoryRecords.map(cat => ({ id: cat.id })),
           },

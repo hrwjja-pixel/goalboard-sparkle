@@ -70,3 +70,6 @@ bun.lockb
 *.bat
 install-service.cjs
 uninstall-service.cjs
+
+# Test coverage
+coverage/
