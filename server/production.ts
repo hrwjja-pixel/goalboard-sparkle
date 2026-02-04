@@ -982,6 +982,161 @@ if (process.env.NODE_ENV === 'production' || Number(PORT) === 80) {
   });
 }
 
+// Copy goal to another project
+app.post('/api/goals/:id/copy', async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { targetProjectId } = req.body;
+
+    if (!targetProjectId) {
+      return res.status(400).json({ error: 'targetProjectId is required' });
+    }
+
+    // Get source goal with all related data
+    const sourceGoal = await prisma.goal.findUnique({
+      where: { id },
+      include: {
+        categories: true,
+        subGoals: { orderBy: { order: 'asc' } },
+        notes: true,
+      },
+    });
+
+    if (!sourceGoal) {
+      return res.status(404).json({ error: 'Goal not found' });
+    }
+
+    // Prevent copying to same project
+    if (sourceGoal.projectId === targetProjectId) {
+      return res.status(400).json({ error: 'Cannot copy to the same project' });
+    }
+
+    // Verify target project exists
+    const targetProject = await prisma.project.findUnique({
+      where: { id: targetProjectId },
+    });
+
+    if (!targetProject) {
+      return res.status(404).json({ error: 'Target project not found' });
+    }
+
+    // Get source project for audit log
+    const sourceProject = await prisma.project.findUnique({
+      where: { id: sourceGoal.projectId },
+    });
+
+    // Handle category mapping
+    const categoryMapping: Record<string, { targetId: string; isNew: boolean; name: string }> = {};
+
+    for (const sourceCategory of sourceGoal.categories) {
+      // Check if category with same name exists in target project
+      let targetCategory = await prisma.category.findFirst({
+        where: {
+          name: sourceCategory.name,
+          projectId: targetProjectId,
+        },
+      });
+
+      if (targetCategory) {
+        categoryMapping[sourceCategory.id] = {
+          targetId: targetCategory.id,
+          isNew: false,
+          name: sourceCategory.name,
+        };
+      } else {
+        // Create new category in target project
+        targetCategory = await prisma.category.create({
+          data: {
+            name: sourceCategory.name,
+            color: sourceCategory.color,
+            projectId: targetProjectId,
+          },
+        });
+        categoryMapping[sourceCategory.id] = {
+          targetId: targetCategory.id,
+          isNew: true,
+          name: sourceCategory.name,
+        };
+      }
+    }
+
+    // Get max order in target project
+    const maxOrderGoal = await prisma.goal.findFirst({
+      where: { projectId: targetProjectId },
+      orderBy: { order: 'desc' },
+      select: { order: true },
+    });
+    const newOrder = (maxOrderGoal?.order ?? -1) + 1;
+
+    // Create new goal
+    const newGoal = await prisma.goal.create({
+      data: {
+        title: sourceGoal.title,
+        description: sourceGoal.description,
+        progress: sourceGoal.progress,
+        owner: sourceGoal.owner,
+        size: sourceGoal.size,
+        startDate: sourceGoal.startDate,
+        dueDate: sourceGoal.dueDate,
+        statusNote: sourceGoal.statusNote,
+        completed: sourceGoal.completed,
+        order: newOrder,
+        projectId: targetProjectId,
+        categories: {
+          connect: Object.values(categoryMapping).map(m => ({ id: m.targetId })),
+        },
+        subGoals: sourceGoal.subGoals.length > 0 ? {
+          create: sourceGoal.subGoals.map((sg, index) => ({
+            title: sg.title,
+            description: sg.description,
+            owner: sg.owner,
+            progress: sg.progress,
+            startDate: sg.startDate,
+            dueDate: sg.dueDate,
+            statusNote: sg.statusNote,
+            order: index,
+          })),
+        } : undefined,
+        notes: sourceGoal.notes.length > 0 ? {
+          create: sourceGoal.notes.map(note => ({
+            content: note.content,
+            isPinned: note.isPinned,
+          })),
+        } : undefined,
+      },
+      include: {
+        categories: true,
+        subGoals: { orderBy: { order: 'asc' } },
+        notes: true,
+      },
+    });
+
+    // Audit log
+    await (req as any).audit?.({
+      action: 'CREATE',
+      entityType: 'Goal',
+      entityId: newGoal.id,
+      entityTitle: newGoal.title,
+      goalId: newGoal.id,
+      projectId: targetProjectId,
+      summary: `목표 '${newGoal.title}' 복사됨 (원본: ${sourceProject?.name || '알 수 없음'})`,
+    });
+
+    res.json({
+      goal: {
+        ...newGoal,
+        categories: newGoal.categories.map(cat => cat.name),
+      },
+      categoryMapping,
+      sourceProject: sourceProject?.name,
+      targetProject: targetProject.name,
+    });
+  } catch (error) {
+    console.error('Error copying goal:', error);
+    res.status(500).json({ error: 'Failed to copy goal' });
+  }
+});
+
 // Attachment endpoints
 
 // Upload file to a goal

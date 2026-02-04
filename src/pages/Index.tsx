@@ -45,7 +45,7 @@ import { useProject } from '@/contexts/ProjectContext';
 const Index = () => {
   const { user, logout } = useAuth();
   const { settings: userSettings, updateSettings: updateUserSettings } = useUserSettings();
-  const { currentProject, includeDescendants } = useProject();
+  const { currentProject, includeDescendants, projects, projectTree, setCurrentProject } = useProject();
 
   const [goals, setGoals] = useState<Goal[]>([]);
   const [categories, setCategories] = useState<GoalCategory[]>([]);
@@ -518,7 +518,7 @@ const Index = () => {
     }
   };
 
-  const { projects, isLoading: projectsLoading, createProject } = useProject();
+  const { isLoading: projectsLoading, createProject } = useProject();
 
   if (isLoading || projectsLoading) {
     return (
@@ -676,6 +676,20 @@ const Index = () => {
         onToggleComplete={handleToggleComplete}
         categories={categories}
         categoryColors={categoryColors}
+        projects={projects}
+        projectTree={projectTree}
+        currentProjectId={currentProject?.id || ''}
+        onCopySuccess={(newGoal, targetProjectId) => {
+          // Close view dialog
+          setIsViewDialogOpen(false);
+          setSelectedGoal(null);
+          // Navigate to target project
+          const targetProject = projects.find(p => p.id === targetProjectId);
+          if (targetProject) {
+            setCurrentProject(targetProject);
+            // The goal list will refresh automatically when project changes
+          }
+        }}
       />
 
       <GoalDetailModal

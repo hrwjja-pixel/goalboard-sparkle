@@ -49550,6 +49550,135 @@ if (process.env.NODE_ENV === "production" || Number(PORT) === 80) {
     res.sendFile(import_path.default.join(distPath, "index.html"));
   });
 }
+app.post("/api/goals/:id/copy", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { targetProjectId } = req.body;
+    if (!targetProjectId) {
+      return res.status(400).json({ error: "targetProjectId is required" });
+    }
+    const sourceGoal = await prisma3.goal.findUnique({
+      where: { id },
+      include: {
+        categories: true,
+        subGoals: { orderBy: { order: "asc" } },
+        notes: true
+      }
+    });
+    if (!sourceGoal) {
+      return res.status(404).json({ error: "Goal not found" });
+    }
+    if (sourceGoal.projectId === targetProjectId) {
+      return res.status(400).json({ error: "Cannot copy to the same project" });
+    }
+    const targetProject = await prisma3.project.findUnique({
+      where: { id: targetProjectId }
+    });
+    if (!targetProject) {
+      return res.status(404).json({ error: "Target project not found" });
+    }
+    const sourceProject = await prisma3.project.findUnique({
+      where: { id: sourceGoal.projectId }
+    });
+    const categoryMapping = {};
+    for (const sourceCategory of sourceGoal.categories) {
+      let targetCategory = await prisma3.category.findFirst({
+        where: {
+          name: sourceCategory.name,
+          projectId: targetProjectId
+        }
+      });
+      if (targetCategory) {
+        categoryMapping[sourceCategory.id] = {
+          targetId: targetCategory.id,
+          isNew: false,
+          name: sourceCategory.name
+        };
+      } else {
+        targetCategory = await prisma3.category.create({
+          data: {
+            name: sourceCategory.name,
+            color: sourceCategory.color,
+            projectId: targetProjectId
+          }
+        });
+        categoryMapping[sourceCategory.id] = {
+          targetId: targetCategory.id,
+          isNew: true,
+          name: sourceCategory.name
+        };
+      }
+    }
+    const maxOrderGoal = await prisma3.goal.findFirst({
+      where: { projectId: targetProjectId },
+      orderBy: { order: "desc" },
+      select: { order: true }
+    });
+    const newOrder = (maxOrderGoal?.order ?? -1) + 1;
+    const newGoal = await prisma3.goal.create({
+      data: {
+        title: sourceGoal.title,
+        description: sourceGoal.description,
+        progress: sourceGoal.progress,
+        owner: sourceGoal.owner,
+        size: sourceGoal.size,
+        startDate: sourceGoal.startDate,
+        dueDate: sourceGoal.dueDate,
+        statusNote: sourceGoal.statusNote,
+        completed: sourceGoal.completed,
+        order: newOrder,
+        projectId: targetProjectId,
+        categories: {
+          connect: Object.values(categoryMapping).map((m) => ({ id: m.targetId }))
+        },
+        subGoals: sourceGoal.subGoals.length > 0 ? {
+          create: sourceGoal.subGoals.map((sg, index) => ({
+            title: sg.title,
+            description: sg.description,
+            owner: sg.owner,
+            progress: sg.progress,
+            startDate: sg.startDate,
+            dueDate: sg.dueDate,
+            statusNote: sg.statusNote,
+            order: index
+          }))
+        } : void 0,
+        notes: sourceGoal.notes.length > 0 ? {
+          create: sourceGoal.notes.map((note) => ({
+            content: note.content,
+            isPinned: note.isPinned
+          }))
+        } : void 0
+      },
+      include: {
+        categories: true,
+        subGoals: { orderBy: { order: "asc" } },
+        notes: true
+      }
+    });
+    await req.audit?.({
+      action: "CREATE",
+      entityType: "Goal",
+      entityId: newGoal.id,
+      entityTitle: newGoal.title,
+      goalId: newGoal.id,
+      projectId: targetProjectId,
+      summary: `\uBAA9\uD45C '${newGoal.title}' \uBCF5\uC0AC\uB428 (\uC6D0\uBCF8: ${sourceProject?.name || "\uC54C \uC218 \uC5C6\uC74C"})`
+    });
+    res.json({
+      goal: {
+        ...newGoal,
+        categories: newGoal.categories.map((cat) => cat.name)
+      },
+      categoryMapping,
+      sourceProject: sourceProject?.name,
+      targetProject: targetProject.name
+    });
+  } catch (error) {
+    console.error("Error copying goal:", error);
+    res.status(500).json({ error: "Failed to copy goal" });
+  }
+});
 app.post("/api/goals/:id/attachments", upload.single("file"), async (req, res) => {
   try {
     const { id } = req.params;

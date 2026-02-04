@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Goal, SubGoal, GoalCategory, Note, Attachment } from '@/types/goal';
+import { Goal, SubGoal, GoalCategory, Note, Attachment, Project } from '@/types/goal';
 import { ActivityLog, formatRelativeTime, formatActivitySummary } from '@/types/activity';
 import {
   Sheet,
@@ -33,10 +33,12 @@ import {
   History,
   Globe,
   Loader2,
+  Copy,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LinkifiedText } from '@/components/LinkifiedText';
 import { ChangeDetails } from '@/components/ChangeDetails';
+import { GoalCopyDialog } from '@/components/GoalCopyDialog';
 import { api } from '@/lib/api';
 
 interface GoalViewDialogProps {
@@ -47,6 +49,11 @@ interface GoalViewDialogProps {
   onToggleComplete: (id: string, completed: boolean) => void;
   categories: GoalCategory[];
   categoryColors: Record<string, string>;
+  // For copy feature
+  projects?: Project[];
+  projectTree?: Project[];
+  currentProjectId?: string;
+  onCopySuccess?: (newGoal: Goal, targetProjectId: string) => void;
 }
 
 export const GoalViewDialog = ({
@@ -57,11 +64,16 @@ export const GoalViewDialog = ({
   onToggleComplete,
   categories,
   categoryColors,
+  projects = [],
+  projectTree = [],
+  currentProjectId = '',
+  onCopySuccess,
 }: GoalViewDialogProps) => {
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [isLoadingActivities, setIsLoadingActivities] = useState(false);
   const [isActivityOpen, setIsActivityOpen] = useState(false);
   const [hasMoreActivities, setHasMoreActivities] = useState(false);
+  const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
   const [activityOffset, setActivityOffset] = useState(0);
   const ACTIVITY_LIMIT = 10;
 
@@ -409,17 +421,43 @@ export const GoalViewDialog = ({
 
         {/* Footer */}
         <SheetFooter className="px-6 py-4 border-t bg-background">
-          <div className="flex justify-end gap-2 w-full">
-            <Button variant="outline" onClick={onClose}>
-              닫기
-            </Button>
-            <Button onClick={onEdit}>
-              <Pencil className="h-4 w-4 mr-1" />
-              편집
-            </Button>
+          <div className="flex justify-between w-full">
+            <div>
+              {projects.length > 1 && onCopySuccess && (
+                <Button
+                  variant="outline"
+                  onClick={() => setIsCopyDialogOpen(true)}
+                >
+                  <Copy className="h-4 w-4 mr-1" />
+                  복사
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={onClose}>
+                닫기
+              </Button>
+              <Button onClick={onEdit}>
+                <Pencil className="h-4 w-4 mr-1" />
+                편집
+              </Button>
+            </div>
           </div>
         </SheetFooter>
       </SheetContent>
+
+      {/* Copy Dialog */}
+      <GoalCopyDialog
+        goal={goal}
+        open={isCopyDialogOpen}
+        onClose={() => setIsCopyDialogOpen(false)}
+        projects={projects}
+        projectTree={projectTree}
+        currentProjectId={currentProjectId}
+        onSuccess={(newGoal, targetProjectId) => {
+          onCopySuccess?.(newGoal, targetProjectId);
+        }}
+      />
     </Sheet>
   );
 };
