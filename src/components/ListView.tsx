@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { PriorityIcon } from '@/components/PriorityIcon';
 
 interface ListViewProps {
   goals: Goal[];
@@ -439,13 +440,16 @@ export const ListView = ({
                     )}
                   </TableCell>
                   <TableCell className="font-medium">
-                    <div className="flex flex-col gap-1">
-                      <span className="line-clamp-1">{goal.title}</span>
-                      {goal.description && (
-                        <span className="text-xs text-muted-foreground line-clamp-1">
-                          {goal.description}
-                        </span>
-                      )}
+                    <div className="flex items-start gap-2">
+                      <PriorityIcon size={goal.size} className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                      <div className="flex flex-col gap-1">
+                        <span className="line-clamp-1">{goal.title}</span>
+                        {goal.description && (
+                          <span className="text-xs text-muted-foreground line-clamp-1">
+                            {goal.description}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>

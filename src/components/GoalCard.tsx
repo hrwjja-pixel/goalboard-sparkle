@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { LinkifiedText } from '@/components/LinkifiedText';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { PriorityIcon } from '@/components/PriorityIcon';
 
 interface GoalCardProps {
   goal: Goal;
@@ -59,22 +60,6 @@ const getSizeClass = (size: GoalSize) => {
   }
 };
 
-const getSizeBadge = (size: GoalSize) => {
-  switch (size) {
-    case 'xs':
-      return { label: '최저 중요도', color: 'bg-muted/50 text-muted-foreground' };
-    case 'small':
-      return { label: '낮은 중요도', color: 'bg-muted text-muted-foreground' };
-    case 'medium':
-      return { label: '중간 중요도', color: 'bg-accent text-accent-foreground' };
-    case 'large':
-      return { label: '높은 중요도', color: 'bg-primary/80 text-primary-foreground' };
-    case 'xl':
-      return { label: '최고 중요도', color: 'bg-primary text-primary-foreground' };
-    default:
-      return { label: '중간 중요도', color: 'bg-accent text-accent-foreground' }; // fallback
-  }
-};
 
 export const GoalCard = ({ goal, onClick, categoryColors, onToggleComplete }: GoalCardProps) => {
   const {
@@ -100,7 +85,6 @@ export const GoalCard = ({ goal, onClick, categoryColors, onToggleComplete }: Go
     });
   };
 
-  const sizeBadge = getSizeBadge(goal.size);
   // Use first category for card styling
   const primaryCategory = goal.categories && goal.categories.length > 0 ? goal.categories[0] : 'SERVICE';
   const categoryStyle = getCategoryStyle(primaryCategory as GoalCategory, categoryColors);
@@ -187,9 +171,7 @@ export const GoalCard = ({ goal, onClick, categoryColors, onToggleComplete }: Go
               </Badge>
             );
           })}
-          <Badge className={cn('text-xs font-semibold', sizeBadge.color)}>
-            {sizeBadge.label}
-          </Badge>
+          <PriorityIcon size={goal.size} showLabel />
         </div>
       </div>
 

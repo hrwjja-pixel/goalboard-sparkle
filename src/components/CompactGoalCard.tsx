@@ -13,6 +13,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import { PriorityIcon } from '@/components/PriorityIcon';
 
 interface CompactGoalCardProps {
   goal: Goal;
@@ -203,7 +204,8 @@ export const CompactGoalCard = ({ goal, onClick, categoryColors, onToggleComplet
           </div>
           <div onClick={onClick}>
         <div className="mb-2">
-          <div className="flex gap-1 flex-wrap">
+          <div className="flex gap-1 flex-wrap items-center">
+            <PriorityIcon size={goal.size} className="w-3.5 h-3.5" />
             {goal.categories && goal.categories.map((category, index) => {
               const catStyle = getCategoryStyle(category as GoalCategory, categoryColors);
               return (
