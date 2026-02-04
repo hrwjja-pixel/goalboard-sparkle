@@ -83,6 +83,30 @@ function TreeNode({ project, depth, expandedIds, onToggle, onSelect, selectedId 
   );
 }
 
+const EXPANDED_IDS_KEY = 'project_tree_expanded_ids';
+
+// localStorage에서 펼쳐진 상태 로드
+const loadExpandedIds = (): Set<string> => {
+  try {
+    const stored = localStorage.getItem(EXPANDED_IDS_KEY);
+    if (stored) {
+      return new Set(JSON.parse(stored));
+    }
+  } catch (e) {
+    console.error('Failed to load expanded ids:', e);
+  }
+  return new Set();
+};
+
+// localStorage에 펼쳐진 상태 저장
+const saveExpandedIds = (ids: Set<string>) => {
+  try {
+    localStorage.setItem(EXPANDED_IDS_KEY, JSON.stringify([...ids]));
+  } catch (e) {
+    console.error('Failed to save expanded ids:', e);
+  }
+};
+
 export const ProjectSelector = () => {
   const {
     projects,
@@ -97,7 +121,7 @@ export const ProjectSelector = () => {
     deleteProject
   } = useProject();
   const [manageDialogOpen, setManageDialogOpen] = useState(false);
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => loadExpandedIds());
 
   if (isLoading || !currentProject) {
     return (
@@ -115,6 +139,7 @@ export const ProjectSelector = () => {
       } else {
         next.add(id);
       }
+      saveExpandedIds(next);
       return next;
     });
   };
