@@ -32,6 +32,7 @@ import {
   Target,
   History,
   Globe,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LinkifiedText } from '@/components/LinkifiedText';
@@ -59,17 +60,51 @@ export const GoalViewDialog = ({
 }: GoalViewDialogProps) => {
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [isLoadingActivities, setIsLoadingActivities] = useState(false);
+  const [isActivityOpen, setIsActivityOpen] = useState(false);
+  const [hasMoreActivities, setHasMoreActivities] = useState(false);
+  const [activityOffset, setActivityOffset] = useState(0);
+  const ACTIVITY_LIMIT = 10;
 
-  // Load activities when dialog opens or goal changes (including after edit)
+  // Reset activity state when dialog closes or goal changes
   useEffect(() => {
-    if (open && goal?.id) {
-      setIsLoadingActivities(true);
-      api.getGoalActivity(goal.id, 10)
-        .then(setActivities)
-        .catch(console.error)
-        .finally(() => setIsLoadingActivities(false));
+    if (!open) {
+      setActivities([]);
+      setIsActivityOpen(false);
+      setHasMoreActivities(false);
+      setActivityOffset(0);
     }
-  }, [open, goal?.id, goal?.version]);
+  }, [open, goal?.id]);
+
+  // Load activities when collapsible opens (lazy loading)
+  const handleActivityOpenChange = (isOpen: boolean) => {
+    setIsActivityOpen(isOpen);
+    if (isOpen && activities.length === 0 && goal?.id) {
+      loadActivities(true);
+    }
+  };
+
+  const loadActivities = async (reset: boolean = false) => {
+    if (!goal?.id || isLoadingActivities) return;
+
+    setIsLoadingActivities(true);
+    try {
+      const offset = reset ? 0 : activityOffset;
+      const data = await api.getGoalActivity(goal.id, ACTIVITY_LIMIT, offset);
+
+      if (reset) {
+        setActivities(data);
+        setActivityOffset(ACTIVITY_LIMIT);
+      } else {
+        setActivities(prev => [...prev, ...data]);
+        setActivityOffset(prev => prev + ACTIVITY_LIMIT);
+      }
+      setHasMoreActivities(data.length === ACTIVITY_LIMIT);
+    } catch (error) {
+      console.error('Error loading activities:', error);
+    } finally {
+      setIsLoadingActivities(false);
+    }
+  };
 
   if (!goal) return null;
 
@@ -303,50 +338,73 @@ export const GoalViewDialog = ({
             </div>
           )}
 
-          {/* Activity History Section - Collapsible */}
-          {activities.length > 0 && (
-            <Collapsible defaultOpen={false}>
-              <CollapsibleTrigger asChild>
-                <button className="w-full flex items-center justify-between p-3 bg-muted/30 rounded-lg border hover:bg-muted/50 transition-colors group">
-                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                    <History className="h-4 w-4" />
-                    변경 이력 ({activities.length}건)
-                  </h3>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-                </button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="mt-2 space-y-2">
-                {activities.map((activity) => (
-                  <div
-                    key={activity.id}
-                    className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg border"
-                  >
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-muted flex items-center justify-center">
-                      {activity.user?.picture ? (
-                        <img
-                          src={activity.user.picture}
-                          alt={activity.displayName}
-                          className="w-6 h-6 rounded-full"
-                        />
-                      ) : (
-                        <Globe className="h-3 w-3 text-muted-foreground" />
-                      )}
+          {/* Activity History Section - Lazy Loading */}
+          <Collapsible open={isActivityOpen} onOpenChange={handleActivityOpenChange}>
+            <CollapsibleTrigger asChild>
+              <button className="w-full flex items-center justify-between p-3 bg-muted/30 rounded-lg border hover:bg-muted/50 transition-colors group">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                  <History className="h-4 w-4" />
+                  변경 이력 보기
+                </h3>
+                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2 space-y-2">
+              {isLoadingActivities && activities.length === 0 ? (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : activities.length === 0 ? (
+                <div className="text-center py-4 text-sm text-muted-foreground">
+                  변경 이력이 없습니다.
+                </div>
+              ) : (
+                <>
+                  {activities.map((activity) => (
+                    <div
+                      key={activity.id}
+                      className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg border"
+                    >
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-muted flex items-center justify-center">
+                        {activity.user?.picture ? (
+                          <img
+                            src={activity.user.picture}
+                            alt={activity.displayName}
+                            className="w-6 h-6 rounded-full"
+                          />
+                        ) : (
+                          <Globe className="h-3 w-3 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm">
+                          {formatActivitySummary(activity)}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {activity.displayName} · {formatRelativeTime(activity.createdAt)}
+                        </p>
+                        <ChangeDetails changes={activity.changes} />
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm">
-                        {formatActivitySummary(activity)}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {activity.displayName} · {formatRelativeTime(activity.createdAt)}
-                      </p>
-                      {/* 변경 상세 내용 표시 */}
-                      <ChangeDetails changes={activity.changes} />
-                    </div>
-                  </div>
-                ))}
-              </CollapsibleContent>
-            </Collapsible>
-          )}
+                  ))}
+                  {hasMoreActivities && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => loadActivities(false)}
+                      disabled={isLoadingActivities}
+                    >
+                      {isLoadingActivities ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : null}
+                      더 보기
+                    </Button>
+                  )}
+                </>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
         </div>
 
         {/* Footer */}

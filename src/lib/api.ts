@@ -257,8 +257,8 @@ export const api = {
     return response.json();
   },
 
-  async getGoalActivity(goalId: string, limit = 50): Promise<ActivityLog[]> {
-    const response = await fetch(`${API_BASE_URL}/api/goals/${goalId}/activity?limit=${limit}`);
+  async getGoalActivity(goalId: string, limit = 50, offset = 0): Promise<ActivityLog[]> {
+    const response = await fetch(`${API_BASE_URL}/api/goals/${goalId}/activity?limit=${limit}&offset=${offset}`);
     if (!response.ok) throw new Error('Failed to fetch goal activity');
     return response.json();
   },

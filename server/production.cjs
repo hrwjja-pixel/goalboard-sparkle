@@ -49493,12 +49493,13 @@ app.get("/api/activity", async (req, res) => {
 app.get("/api/goals/:id/activity", async (req, res) => {
   try {
     const { id } = req.params;
-    const { limit = "50" } = req.query;
+    const { limit = "50", offset = "0" } = req.query;
     const activities = await prisma3.auditLog.findMany({
       where: { goalId: id },
       include: { user: { select: { name: true, picture: true } } },
       orderBy: { createdAt: "desc" },
-      take: Number(limit)
+      take: Number(limit),
+      skip: Number(offset)
     });
     const result = activities.map((a) => ({
       ...a,

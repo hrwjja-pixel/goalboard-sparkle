@@ -905,13 +905,14 @@ app.get('/api/activity', async (req: Request, res: Response) => {
 app.get('/api/goals/:id/activity', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { limit = '50' } = req.query;
+    const { limit = '50', offset = '0' } = req.query;
 
     const activities = await prisma.auditLog.findMany({
       where: { goalId: id },
       include: { user: { select: { name: true, picture: true } } },
       orderBy: { createdAt: 'desc' },
       take: Number(limit),
+      skip: Number(offset),
     });
 
     // IP 주소 또는 사용자 이름 표시
