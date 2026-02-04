@@ -73,3 +73,6 @@ uninstall-service.cjs
 
 # Test coverage
 coverage/
+
+# Server build output
+server/production.cjs
