@@ -143,17 +143,12 @@ ENDSSH
 if [ -n "${NGINX_DIST_PATH}" ]; then
     echo ""
     echo "🔄 nginx 정적 파일 업데이트 중..."
+    echo "📋 dist 파일 복사: ${SERVER_PATH}/dist/ -> ${NGINX_DIST_PATH}/"
+    echo "   (sudo 비밀번호가 필요할 수 있습니다)"
+    echo ""
 
-    ssh ${SSH_OPTS} ${SERVER_USER}@${SERVER_HOST} << NGINX_EOF
-# dist 파일을 nginx 경로로 복사
-echo "📋 dist 파일 복사: ${SERVER_PATH}/dist/ -> ${NGINX_DIST_PATH}/"
-sudo cp -r ${SERVER_PATH}/dist/* ${NGINX_DIST_PATH}/
-
-# nginx 설정 테스트 및 재시작
-echo "🔄 nginx 재시작..."
-sudo nginx -t && sudo nginx -s reload
-echo "✅ nginx 재시작 완료"
-NGINX_EOF
+    # -t 옵션으로 pseudo-terminal 할당하여 sudo 비밀번호 입력 가능하게 함
+    ssh -t ${SSH_OPTS} ${SERVER_USER}@${SERVER_HOST} "sudo cp -r ${SERVER_PATH}/dist/* ${NGINX_DIST_PATH}/ && echo '✅ 파일 복사 완료' && sudo nginx -t && sudo nginx -s reload && echo '✅ nginx 재시작 완료'"
 
     echo ""
     echo "✅ nginx 정적 파일 업데이트 완료"
