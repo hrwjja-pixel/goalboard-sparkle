@@ -784,6 +784,10 @@ const Index = () => {
         onAdd={handleAddGoal}
         categories={categories}
         categoryColors={categoryColors}
+        onAddCategory={handleAddCategory}
+        onUpdateCategoryColor={handleCategoryColorChange}
+        onUpdateCategoryName={handleCategoryNameChange}
+        onDeleteCategory={handleDeleteCategory}
       />
 
       <SettingsDialog

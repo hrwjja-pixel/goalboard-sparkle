@@ -5,11 +5,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Slider } from '@/components/ui/slider';
-import { Maximize2, Check } from 'lucide-react';
+import { Maximize2, Check, Plus, X, Pencil, Palette, Trash2 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
+
+const PRESET_COLORS = [
+  '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
+  '#3b82f6', '#8b5cf6', '#ec4899', '#6b7280', '#1f2937',
+];
 
 interface AddGoalModalProps {
   open: boolean;
@@ -17,9 +22,23 @@ interface AddGoalModalProps {
   onAdd: (goal: Goal) => void;
   categories: GoalCategory[];
   categoryColors?: Record<string, string>;
+  onAddCategory?: (name: string) => Promise<void>;
+  onUpdateCategoryColor?: (category: string, color: string) => Promise<void>;
+  onUpdateCategoryName?: (oldName: string, newName: string) => Promise<void>;
+  onDeleteCategory?: (category: string) => Promise<void>;
 }
 
-export const AddGoalModal = ({ open, onClose, onAdd, categories, categoryColors = {} }: AddGoalModalProps) => {
+export const AddGoalModal = ({
+  open,
+  onClose,
+  onAdd,
+  categories,
+  categoryColors = {},
+  onAddCategory,
+  onUpdateCategoryColor,
+  onUpdateCategoryName,
+  onDeleteCategory,
+}: AddGoalModalProps) => {
   const [newGoal, setNewGoal] = useState<Partial<Goal>>({
     title: '',
     description: '',
@@ -31,6 +50,101 @@ export const AddGoalModal = ({ open, onClose, onAdd, categories, categoryColors 
     dueDate: '',
     statusNote: '',
   });
+
+  // 새 카테고리 추가
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [showAddCategory, setShowAddCategory] = useState(false);
+
+  // 카테고리 편집
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
+
+  // 색상 편집
+  const [colorPickerCategory, setColorPickerCategory] = useState<string | null>(null);
+
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim() || !onAddCategory) return;
+    if (categories.includes(newCategoryName.trim())) {
+      alert('이미 존재하는 카테고리입니다.');
+      return;
+    }
+
+    try {
+      await onAddCategory(newCategoryName.trim());
+      // 새 카테고리를 자동으로 선택
+      if ((newGoal.categories?.length || 0) < 5) {
+        setNewGoal({ ...newGoal, categories: [...(newGoal.categories || []), newCategoryName.trim()] });
+      }
+      setNewCategoryName('');
+      setShowAddCategory(false);
+    } catch (error) {
+      console.error('Failed to add category:', error);
+    }
+  };
+
+  const handleColorChange = async (category: string, color: string, closeAfter: boolean = false) => {
+    if (!onUpdateCategoryColor) return;
+    try {
+      await onUpdateCategoryColor(category, color);
+      if (closeAfter) {
+        setColorPickerCategory(null);
+      }
+    } catch (error) {
+      console.error('Failed to update color:', error);
+    }
+  };
+
+  const handleNameChange = async (oldName: string) => {
+    if (!onUpdateCategoryName || !editingName.trim() || editingName === oldName) {
+      setEditingCategory(null);
+      setEditingName('');
+      return;
+    }
+    if (categories.includes(editingName.trim()) && editingName.trim() !== oldName) {
+      alert('이미 존재하는 카테고리입니다.');
+      return;
+    }
+
+    try {
+      await onUpdateCategoryName(oldName, editingName.trim());
+      // 선택된 카테고리 목록도 업데이트
+      if (newGoal.categories?.includes(oldName)) {
+        setNewGoal({
+          ...newGoal,
+          categories: newGoal.categories.map(c => c === oldName ? editingName.trim() : c)
+        });
+      }
+      setEditingCategory(null);
+      setEditingName('');
+    } catch (error) {
+      console.error('Failed to update name:', error);
+    }
+  };
+
+  const handleDeleteCategory = async (category: string) => {
+    if (!onDeleteCategory) return;
+
+    if (!confirm(`'${category}' 카테고리를 삭제하시겠습니까?`)) return;
+
+    try {
+      await onDeleteCategory(category);
+      // 선택된 카테고리에서도 제거
+      if (newGoal.categories?.includes(category)) {
+        setNewGoal({
+          ...newGoal,
+          categories: newGoal.categories.filter(c => c !== category)
+        });
+      }
+    } catch (error) {
+      console.error('Failed to delete category:', error);
+    }
+  };
+
+  const startEditing = (category: string) => {
+    setEditingCategory(category);
+    setEditingName(category);
+    setColorPickerCategory(null);
+  };
 
   const handleAdd = () => {
     if (!newGoal.title || !newGoal.owner) {
@@ -83,6 +197,8 @@ export const AddGoalModal = ({ open, onClose, onAdd, categories, categoryColors 
     { value: 'xl', label: '최고 중요도', description: '2x3 카드 (매우 큰 크기)' },
   ];
 
+  const hasManagementFeatures = onAddCategory || onUpdateCategoryColor || onUpdateCategoryName || onDeleteCategory;
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -121,43 +237,206 @@ export const AddGoalModal = ({ open, onClose, onAdd, categories, categoryColors 
 
           <div>
             <Label>카테고리 * (최소 1개, 최대 5개) - 선택됨: {newGoal.categories?.length || 0} / 5</Label>
-            <div className="mt-2 flex flex-wrap gap-2 p-3 border rounded-md bg-background">
+            <div className="mt-2 space-y-2 p-3 border rounded-md bg-background">
               {categories.map((category) => {
                 const isSelected = newGoal.categories?.includes(category);
                 const canSelect = !isSelected && (newGoal.categories?.length || 0) < 5;
-                const canDeselect = isSelected && (newGoal.categories?.length || 0) > 1;
                 const color = categoryColors[category] || '#6b7280';
+                const isEditing = editingCategory === category;
+                const isColorPicking = colorPickerCategory === category;
 
                 return (
-                  <button
-                    key={category}
-                    type="button"
-                    disabled={(!canSelect && !isSelected) || (!canDeselect && isSelected)}
-                    onClick={() => {
-                      const newCategories = isSelected
-                        ? (newGoal.categories || []).filter(c => c !== category)
-                        : [...(newGoal.categories || []), category];
-                      setNewGoal({ ...newGoal, categories: newCategories });
-                    }}
-                    className={cn(
-                      "relative px-3 py-1.5 rounded-md text-sm font-medium transition-all border-2",
-                      (!canSelect && !isSelected) && "opacity-50 cursor-not-allowed"
-                    )}
-                    style={{
-                      backgroundColor: isSelected ? color : `${color}15`,
-                      borderColor: isSelected ? color : `${color}40`,
-                      color: isSelected ? '#ffffff' : color,
-                    }}
-                  >
-                    {category}
-                    {isSelected && (
-                      <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center shadow-md">
-                        <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                  <div key={category} className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      {/* 카테고리 버튼 */}
+                      <button
+                        type="button"
+                        disabled={!canSelect && !isSelected}
+                        onClick={() => {
+                          if (isEditing) return;
+                          const newCategories = isSelected
+                            ? (newGoal.categories || []).filter(c => c !== category)
+                            : [...(newGoal.categories || []), category];
+                          setNewGoal({ ...newGoal, categories: newCategories });
+                        }}
+                        className={cn(
+                          "flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-all border-2 text-left",
+                          (!canSelect && !isSelected) && "opacity-50 cursor-not-allowed"
+                        )}
+                        style={{
+                          backgroundColor: isSelected ? color : `${color}15`,
+                          borderColor: isSelected ? color : `${color}40`,
+                          color: isSelected ? '#ffffff' : color,
+                        }}
+                      >
+                        {isEditing ? (
+                          <Input
+                            value={editingName}
+                            onChange={(e) => setEditingName(e.target.value)}
+                            onKeyDown={(e) => {
+                              e.stopPropagation();
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleNameChange(category);
+                              }
+                              if (e.key === 'Escape') {
+                                setEditingCategory(null);
+                                setEditingName('');
+                              }
+                            }}
+                            onBlur={() => handleNameChange(category)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-5 text-xs px-1 bg-white text-foreground border-0"
+                            autoFocus
+                          />
+                        ) : (
+                          <span className="truncate block">{category}</span>
+                        )}
+                      </button>
+
+                      {/* 체크 아이콘 */}
+                      <span className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
+                        {isSelected && !isEditing && (
+                          <span className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center shadow-sm">
+                            <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                          </span>
+                        )}
                       </span>
+
+                      {/* 편집 버튼들 */}
+                      {hasManagementFeatures && !isEditing && (
+                        <div className="flex gap-0.5 flex-shrink-0">
+                          {onUpdateCategoryName && (
+                            <button
+                              type="button"
+                              onClick={() => startEditing(category)}
+                              className="p-1 rounded hover:bg-accent/50 text-muted-foreground hover:text-foreground transition-colors"
+                              title="이름 변경"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {onUpdateCategoryColor && (
+                            <button
+                              type="button"
+                              onClick={() => setColorPickerCategory(isColorPicking ? null : category)}
+                              className={cn(
+                                "p-1 rounded hover:bg-accent/50 text-muted-foreground hover:text-foreground transition-colors",
+                                isColorPicking && "bg-accent/50 text-foreground"
+                              )}
+                              title="색상 변경"
+                            >
+                              <Palette className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {onDeleteCategory && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCategory(category)}
+                              className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+                              title="삭제"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 색상 선택기 */}
+                    {isColorPicking && (
+                      <div className="px-2 py-2 bg-muted/50 rounded-md ml-2 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={color}
+                            onChange={(e) => handleColorChange(category, e.target.value)}
+                            className="w-8 h-6 rounded cursor-pointer border-0"
+                          />
+                          <span className="text-xs text-muted-foreground">직접 선택</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {PRESET_COLORS.map((presetColor) => (
+                            <button
+                              key={presetColor}
+                              type="button"
+                              onClick={() => handleColorChange(category, presetColor, true)}
+                              className={cn(
+                                'w-5 h-5 rounded-sm border-2 hover:scale-110 transition-transform',
+                                color === presetColor ? 'border-primary' : 'border-transparent'
+                              )}
+                              style={{ backgroundColor: presetColor }}
+                            />
+                          ))}
+                        </div>
+                      </div>
                     )}
-                  </button>
+                  </div>
                 );
               })}
+
+              {/* 카테고리 추가 */}
+              {onAddCategory && (
+                showAddCategory ? (
+                  <div className="flex items-center gap-1 pt-2 border-t">
+                    <Input
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      placeholder="새 카테고리명"
+                      className="h-8 text-sm"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddCategory();
+                        }
+                        if (e.key === 'Escape') {
+                          setShowAddCategory(false);
+                          setNewCategoryName('');
+                        }
+                      }}
+                      autoFocus
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 px-2"
+                      onClick={handleAddCategory}
+                      disabled={!newCategoryName.trim()}
+                    >
+                      추가
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 px-2"
+                      onClick={() => {
+                        setShowAddCategory(false);
+                        setNewCategoryName('');
+                      }}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowAddCategory(true)}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors border-t pt-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>새 카테고리 추가</span>
+                  </button>
+                )
+              )}
+
+              {/* 카테고리가 없을 때 안내 메시지 */}
+              {categories.length === 0 && !showAddCategory && (
+                <p className="text-sm text-muted-foreground">
+                  카테고리가 없습니다. 아래 버튼을 눌러 새 카테고리를 만들어주세요.
+                </p>
+              )}
             </div>
           </div>
 
