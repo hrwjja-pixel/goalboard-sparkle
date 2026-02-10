@@ -798,7 +798,7 @@ const Index = () => {
       />
 
       {/* Copyright */}
-      <div className="fixed bottom-4 right-4 text-xs text-muted-foreground opacity-40 pointer-events-none select-none">
+      <div className="fixed bottom-4 right-4 text-xs text-muted-foreground opacity-60 pointer-events-none select-none">
         Copyright © L.Y.M & J.J.A. All rights reserved.
       </div>
       </div>
