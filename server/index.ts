@@ -9,6 +9,7 @@ import authRoutes from './routes/auth';
 import { optionalAuth, AuthRequest } from './middleware/auth';
 import { attachAuditLog } from './middleware/audit';
 import { buildChangesData } from './utils/changeTracker';
+import { buildNoteUpdateData } from './utils/noteUpdateHelper';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import multer from 'multer';
@@ -810,18 +811,11 @@ app.put('/api/goals/:id', async (req: AuthRequest, res: Response) => {
           const existingNote = note.id ? existingNotesMap.get(note.id) : null;
 
           if (existingNote) {
-            // Only update if content or isPinned actually changed
-            const contentChanged = existingNote.content !== note.content;
-            const isPinnedChanged = existingNote.isPinned !== note.isPinned;
-
-            if (contentChanged || isPinnedChanged) {
+            const { shouldUpdate, data } = buildNoteUpdateData(existingNote, note);
+            if (shouldUpdate) {
               await tx.note.update({
                 where: { id: note.id },
-                data: {
-                  content: note.content,
-                  isPinned: note.isPinned,
-                  version: { increment: 1 },
-                },
+                data,
               });
             }
           } else {

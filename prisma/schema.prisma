@@ -92,7 +92,7 @@ model Note {
   goalId    String
   version   Int      @default(0)
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now())
   goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
 
   @@index([goalId])
