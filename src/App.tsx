@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ProjectProvider } from "./contexts/ProjectContext";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
+import Register from "./pages/Register";
 import NotFound from "./pages/NotFound";
 import ActivityFeed from "./pages/ActivityFeed";
 
@@ -45,8 +46,9 @@ const App = () => {
             <ProjectProvider>
               <Routes>
                 <Route path="/login" element={<Login />} />
-                <Route path="/" element={<Index />} />
-                <Route path="/activity" element={<ActivityFeed />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+                <Route path="/activity" element={<ProtectedRoute><ActivityFeed /></ProtectedRoute>} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

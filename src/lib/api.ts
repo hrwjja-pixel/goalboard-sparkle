@@ -41,9 +41,36 @@ interface CategoryWithId {
 }
 
 export const api = {
+  // Auth
+  async register(email: string, password: string, name: string): Promise<{ token: string; user: { userId: string; email: string; name: string; picture?: string } }> {
+    const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, name }),
+    });
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || '회원가입에 실패했습니다.');
+    }
+    return response.json();
+  },
+
+  async login(email: string, password: string): Promise<{ token: string; user: { userId: string; email: string; name: string; picture?: string } }> {
+    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || '로그인에 실패했습니다.');
+    }
+    return response.json();
+  },
+
   // Projects
   async getProjects(): Promise<Project[]> {
-    const response = await fetch(`${API_BASE_URL}/api/projects`);
+    const response = await fetch(`${API_BASE_URL}/api/projects`, { headers: getAuthHeaders() });
     if (!response.ok) throw new Error('Failed to fetch projects');
     return response.json();
   },
@@ -84,7 +111,7 @@ export const api = {
 
   // Categories
   async getCategories(projectId: string, includeDescendants: boolean = false): Promise<CategoryWithId[]> {
-    const response = await fetch(`${API_BASE_URL}/api/categories?projectId=${projectId}&includeDescendants=${includeDescendants}`);
+    const response = await fetch(`${API_BASE_URL}/api/categories?projectId=${projectId}&includeDescendants=${includeDescendants}`, { headers: getAuthHeaders() });
     if (!response.ok) throw new Error('Failed to fetch categories');
     return response.json();
   },
@@ -122,6 +149,7 @@ export const api = {
   async deleteCategory(id: string): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/api/categories/${id}`, {
       method: 'DELETE',
+      headers: getAuthHeaders(),
     });
     if (!response.ok) throw new Error('Failed to delete category');
   },
@@ -129,13 +157,13 @@ export const api = {
   // Goals
   async getGoals(projectId: string, showCompleted: boolean = false, includeDescendants: boolean = false): Promise<Goal[]> {
     const url = `${API_BASE_URL}/api/goals?projectId=${projectId}&showCompleted=${showCompleted}&includeDescendants=${includeDescendants}`;
-    const response = await fetch(url);
+    const response = await fetch(url, { headers: getAuthHeaders() });
     if (!response.ok) throw new Error('Failed to fetch goals');
     return response.json();
   },
 
   async getGoal(id: string): Promise<Goal> {
-    const response = await fetch(`${API_BASE_URL}/api/goals/${id}`);
+    const response = await fetch(`${API_BASE_URL}/api/goals/${id}`, { headers: getAuthHeaders() });
     if (!response.ok) throw new Error('Failed to fetch goal');
     return response.json();
   },
@@ -167,6 +195,7 @@ export const api = {
   async deleteGoal(id: string): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/api/goals/${id}`, {
       method: 'DELETE',
+      headers: getAuthHeaders(),
     });
     if (!response.ok) throw new Error('Failed to delete goal');
   },
@@ -210,7 +239,7 @@ export const api = {
 
   // Settings
   async getSettings(): Promise<{ dashboardTitle: string; dashboardSubtitle: string }> {
-    const response = await fetch(`${API_BASE_URL}/api/settings`);
+    const response = await fetch(`${API_BASE_URL}/api/settings`, { headers: getAuthHeaders() });
     if (!response.ok) throw new Error('Failed to fetch settings');
     return response.json();
   },
@@ -246,13 +275,34 @@ export const api = {
   },
 
   async getAttachments(goalId: string): Promise<Attachment[]> {
-    const response = await fetch(`${API_BASE_URL}/api/goals/${goalId}/attachments`);
+    const response = await fetch(`${API_BASE_URL}/api/goals/${goalId}/attachments`, { headers: getAuthHeaders() });
     if (!response.ok) throw new Error('Failed to fetch attachments');
     return response.json();
   },
 
   async downloadAttachment(attachmentId: string): Promise<void> {
-    window.open(`${API_BASE_URL}/api/attachments/${attachmentId}/download`, '_blank');
+    const token = localStorage.getItem('auth_token');
+    const headers: HeadersInit = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/attachments/${attachmentId}/download`, { headers });
+    if (!response.ok) throw new Error('Failed to download attachment');
+
+    const blob = await response.blob();
+    const contentDisposition = response.headers.get('Content-Disposition');
+    const filenameMatch = contentDisposition?.match(/filename\*?=(?:UTF-8''|"?)([^";]+)/i);
+    const filename = filenameMatch ? decodeURIComponent(filenameMatch[1]) : 'download';
+
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
   },
 
   async deleteAttachment(attachmentId: string): Promise<void> {
@@ -270,13 +320,13 @@ export const api = {
     params.append('limit', String(limit));
     params.append('offset', String(offset));
 
-    const response = await fetch(`${API_BASE_URL}/api/activity?${params.toString()}`);
+    const response = await fetch(`${API_BASE_URL}/api/activity?${params.toString()}`, { headers: getAuthHeaders() });
     if (!response.ok) throw new Error('Failed to fetch activity feed');
     return response.json();
   },
 
   async getGoalActivity(goalId: string, limit = 50, offset = 0): Promise<ActivityLog[]> {
-    const response = await fetch(`${API_BASE_URL}/api/goals/${goalId}/activity?limit=${limit}&offset=${offset}`);
+    const response = await fetch(`${API_BASE_URL}/api/goals/${goalId}/activity?limit=${limit}&offset=${offset}`, { headers: getAuthHeaders() });
     if (!response.ok) throw new Error('Failed to fetch goal activity');
     return response.json();
   },

@@ -6,41 +6,24 @@ import passport from 'passport';
 import { PrismaClient } from '@prisma/client';
 import { setupPassport } from './auth/passport';
 import authRoutes from './routes/auth';
-import { optionalAuth, AuthRequest } from './middleware/auth';
+import { authenticateJWT, AuthRequest } from './middleware/auth';
 import { attachAuditLog } from './middleware/audit';
 import { buildChangesData } from './utils/changeTracker';
 import { buildNoteUpdateData } from './utils/noteUpdateHelper';
 import path from 'path';
 import multer from 'multer';
-import fs from 'fs';
+import { createStorageAdapter, decodeMultipartFilename } from './utils/storage';
 
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 
-// Ensure uploads directory exists
+// Storage adapter (local or S3 based on STORAGE_TYPE env)
 const uploadsDir = path.join(__dirname, '..', 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-// Multer configuration for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    // Generate unique filename: timestamp-randomstring-originalname
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    // Multer uses busboy which decodes multipart as latin1, but browsers send UTF-8
-    // We need to convert: latin1 bytes -> UTF-8 string
-    const decodedName = Buffer.from(file.originalname, 'latin1').toString('utf8').normalize('NFC');
-    cb(null, uniqueSuffix + '-' + decodedName);
-  }
-});
+const storageAdapter = createStorageAdapter(uploadsDir);
 
 const upload = multer({
-  storage,
+  storage: storageAdapter.getMulterStorage(),
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB limit
   },
@@ -65,11 +48,16 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Auth routes
+// Auth routes (no authentication required)
 app.use('/api/auth', authRoutes);
 
-// Apply optional auth and audit middleware to all API routes
-app.use('/api', optionalAuth, attachAuditLog);
+// Health check (no authentication required)
+app.get('/api/health', (req: Request, res: Response) => {
+  res.json({ status: 'ok' });
+});
+
+// Apply authentication and audit middleware to all other API routes
+app.use('/api', authenticateJWT, attachAuditLog);
 
 // Helper functions for project hierarchy
 async function isDescendant(targetId: string, ancestorId: string): Promise<boolean> {
@@ -97,11 +85,6 @@ async function getDescendantIds(projectId: string): Promise<string[]> {
 
   return [...childIds, ...descendantIds.flat()];
 }
-
-// Health check
-app.get('/api/health', (req: Request, res: Response) => {
-  res.json({ status: 'ok' });
-});
 
 // Project endpoints
 app.get('/api/projects', async (req: Request, res: Response) => {
@@ -1164,19 +1147,18 @@ app.post('/api/goals/:id/attachments', upload.single('file'), async (req: AuthRe
     // Check if goal exists
     const goal = await prisma.goal.findUnique({ where: { id } });
     if (!goal) {
-      // Clean up uploaded file
-      fs.unlinkSync(file.path);
+      // Clean up uploaded file (local only; S3 not yet uploaded)
+      try { await storageAdapter.delete(file.filename); } catch {}
       return res.status(404).json({ error: 'Goal not found' });
     }
 
-    // Create attachment record
-    // Multer uses busboy which decodes multipart as latin1, but browsers send UTF-8
-    // We need to convert: latin1 bytes -> UTF-8 string
-    const decodedOriginalName = Buffer.from(file.originalname, 'latin1').toString('utf8').normalize('NFC');
+    // Upload via storage adapter (local: no-op, S3: puts to bucket)
+    const fileName = await storageAdapter.upload(file);
+    const decodedOriginalName = decodeMultipartFilename(file.originalname);
 
     const attachment = await prisma.attachment.create({
       data: {
-        fileName: file.filename,
+        fileName,
         originalName: decodedOriginalName,
         mimeType: file.mimetype,
         size: file.size,
@@ -1200,11 +1182,7 @@ app.post('/api/goals/:id/attachments', upload.single('file'), async (req: AuthRe
     console.error('Error uploading file:', error);
     // Clean up file if database operation failed
     if (req.file) {
-      try {
-        fs.unlinkSync(req.file.path);
-      } catch (cleanupError) {
-        console.error('Error cleaning up file:', cleanupError);
-      }
+      try { await storageAdapter.delete(req.file.filename); } catch {}
     }
     res.status(500).json({ error: 'Failed to upload file' });
   }
@@ -1237,16 +1215,12 @@ app.get('/api/attachments/:id/download', async (req: Request, res: Response) => 
       return res.status(404).json({ error: 'Attachment not found' });
     }
 
-    const filePath = path.join(uploadsDir, attachment.fileName);
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'File not found on disk' });
-    }
-
-    // Properly encode filename for Content-Disposition header (RFC 5987)
-    const encodedFilename = encodeURIComponent(attachment.originalName);
-    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedFilename}`);
-    res.setHeader('Content-Type', attachment.mimeType || 'application/octet-stream');
-    res.sendFile(filePath);
+    await storageAdapter.download(
+      attachment.fileName,
+      attachment.originalName,
+      attachment.mimeType || 'application/octet-stream',
+      res
+    );
   } catch (error) {
     console.error('Error downloading file:', error);
     res.status(500).json({ error: 'Failed to download file' });
@@ -1266,11 +1240,8 @@ app.delete('/api/attachments/:id', async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Attachment not found' });
     }
 
-    // Delete file from disk
-    const filePath = path.join(uploadsDir, attachment.fileName);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
+    // Delete file from storage
+    await storageAdapter.delete(attachment.fileName);
 
     // Delete database record
     await prisma.attachment.delete({ where: { id } });

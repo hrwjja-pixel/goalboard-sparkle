@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { api } from '@/lib/api';
 
 // API 기본 URL 설정 (api.ts와 동일한 로직)
 const getApiBaseUrl = () => {
@@ -15,10 +16,18 @@ interface User {
   picture?: string;
 }
 
+interface AuthConfig {
+  oauthEnabled: boolean;
+  localAuthEnabled: boolean;
+}
+
 interface AuthContextType {
   user: User | null;
   token: string | null;
+  authConfig: AuthConfig | null;
   login: (token: string) => void;
+  loginWithCredentials: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -29,44 +38,28 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [authConfig, setAuthConfig] = useState<AuthConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Load token from localStorage on mount
   useEffect(() => {
     const checkAuthConfig = async () => {
       try {
-        // Check if OAuth is configured on the server
         const response = await fetch(`${API_BASE_URL}/api/auth/config`);
         const config = await response.json();
+        setAuthConfig(config);
 
-        if (!config.oauthEnabled) {
-          // OAuth not configured - skip authentication
-          console.log('AuthContext: OAuth not configured, skipping authentication');
-          setUser({
-            userId: 'anonymous',
-            email: 'anonymous@localhost',
-            name: 'Anonymous User',
-          });
-          setIsLoading(false);
-          return;
-        }
-
-        // OAuth is configured - check for stored token
+        // Check for stored token
         const storedToken = localStorage.getItem('auth_token');
         if (storedToken) {
           setToken(storedToken);
-          fetchUserInfo(storedToken);
+          await fetchUserInfo(storedToken);
         } else {
           setIsLoading(false);
         }
       } catch (error) {
-        // If config endpoint fails, assume OAuth is not configured
-        console.log('AuthContext: Failed to check auth config, skipping authentication');
-        setUser({
-          userId: 'anonymous',
-          email: 'anonymous@localhost',
-          name: 'Anonymous User',
-        });
+        console.error('AuthContext: Failed to check auth config');
+        setAuthConfig({ oauthEnabled: false, localAuthEnabled: true });
         setIsLoading(false);
       }
     };
@@ -80,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const tokenFromUrl = params.get('token');
 
     if (tokenFromUrl) {
-      login(tokenFromUrl);
+      handleLogin(tokenFromUrl);
       // Remove token from URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
@@ -109,10 +102,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = (newToken: string) => {
+  const handleLogin = (newToken: string) => {
     localStorage.setItem('auth_token', newToken);
     setToken(newToken);
     fetchUserInfo(newToken);
+  };
+
+  const loginWithCredentials = async (email: string, password: string) => {
+    const result = await api.login(email, password);
+    setUser(result.user);
+    localStorage.setItem('auth_token', result.token);
+    setToken(result.token);
+  };
+
+  const register = async (email: string, password: string, name: string) => {
+    const result = await api.register(email, password, name);
+    setUser(result.user);
+    localStorage.setItem('auth_token', result.token);
+    setToken(result.token);
   };
 
   const logout = () => {
@@ -126,7 +133,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         token,
-        login,
+        authConfig,
+        login: handleLogin,
+        loginWithCredentials,
+        register,
         logout,
         isAuthenticated: !!user,
         isLoading,

@@ -99,14 +99,15 @@ model Note {
 }
 
 model User {
-  id        String     @id @default(uuid())
-  googleId  String     @unique
-  email     String     @unique
-  name      String
-  picture   String?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  auditLogs AuditLog[]
+  id           String     @id @default(uuid())
+  googleId     String?    @unique
+  email        String     @unique
+  name         String
+  picture      String?
+  passwordHash String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  auditLogs    AuditLog[]
 
   @@index([email])
   @@index([googleId])
